@@ -1,0 +1,9 @@
+{
+  "name": "dependency-audit",
+  "version": "1.0.0",
+  "description": "Scan dependencies of a project for vulnerable or insecure packages.",
+  "capabilities": ["security", "dependency-audit"],
+  "transport": { "type": "local", "command": ["npm", "audit"] },
+  "permissions": { "network": { "access": true }, "filesystem": { "read": true, "write": false } },
+  "enabled": true
+}

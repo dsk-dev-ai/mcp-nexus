@@ -82,7 +82,7 @@ export function parseManifest(text: string): ToolManifest {
   return parsed;
 }
 
-/** Minimal YAML subset parser for flat and single-nested manifests. */
+/** Minimal YAML subset parser: flat scalars, top-level "- " lists, nested objects. */
 function yamlLite(text: string): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   let currentKey: string | null = null;
@@ -103,10 +103,18 @@ function yamlLite(text: string): Record<string, unknown> {
         out[currentKey] = coerce(value);
       }
     } else if (currentKey) {
-      const colon = line.indexOf(":");
-      const key = colon === -1 ? line : line.slice(0, colon).trim();
-      const rawValue = colon === -1 ? "true" : line.slice(colon + 1).trim();
-      currentNested[key] = rawValue === "" || rawValue === "true" ? true : coerce(rawValue);
+      // top-level list item: "- value"
+      if (line.startsWith("- ")) {
+        const item = coerce(line.slice(2));
+        const existing = out[currentKey];
+        if (Array.isArray(existing)) existing.push(item);
+        else out[currentKey] = [item];
+      } else {
+        const colon = line.indexOf(":");
+        const key = colon === -1 ? line : line.slice(0, colon).trim();
+        const rawValue = colon === -1 ? "true" : line.slice(colon + 1).trim();
+        currentNested[key] = rawValue === "" || rawValue === "true" ? true : coerce(rawValue);
+      }
     }
   }
   return out;

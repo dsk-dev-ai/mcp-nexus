@@ -1,0 +1,9 @@
+{
+  "name": "env-proof",
+  "version": "1.0.0",
+  "description": "Validate environment variables are set for Node and TypeScript projects.",
+  "capabilities": ["env-validation", "configuration"],
+  "transport": { "type": "local", "command": ["env-proof"] },
+  "permissions": { "filesystem": { "read": true, "write": false } },
+  "enabled": true
+}
