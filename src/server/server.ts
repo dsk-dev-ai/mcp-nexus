@@ -32,7 +32,7 @@ export class NexusMCPServer {
   constructor(deps: NexusServerDeps) {
     this.deps = deps;
     this.server = new McpServer(
-      { name: "mcp-nexus", version: "0.1.0" },
+      { name: "mcp-nexus", version: "0.2.0" },
       { capabilities: { tools: {} } },
     );
     this.registerTools();
@@ -86,6 +86,26 @@ export class NexusMCPServer {
               alternatives: decision.alternatives,
               explanation: decision.explanation,
             }, null, 2),
+          }],
+        };
+      },
+    );
+
+    this.server.tool(
+      "nexus.discover",
+      "Dynamic capability discovery: return the minimal tool surface for a request (top candidate tools + capabilities), without executing anything.",
+      { query: z.string().describe("user request") },
+      async ({ query }) => {
+        const { query: q, surface } = await router.discover(query, registry.enabled());
+        const text = surface.length === 0
+          ? `No tools found for "${q}". Register tools first via nexus.register_tool.`
+          : surface
+            .map((t) => `- ${t.name} (via ${t.provider}, ${(t.confidence * 100).toFixed(0)}%): ${t.matchedCapabilities.join(", ") || "no explicit capability match"}`)
+            .join("\n");
+        return {
+          content: [{
+            type: "text",
+            text: `Request: "${q}"\nMinimal surface:\n${text}\n\nExecute any of these with nexus.invoke (query: "${q}").`,
           }],
         };
       },
@@ -153,11 +173,16 @@ export class NexusMCPServer {
   }
 }
 
+/**
+ * A tool's invocation scope is what its manifest explicitly *grants* (truthy
+ * ops). Ops declared `false` are the tool declaring what it will not do — they
+ * read as "no such capability granted", not as a deny trigger on every call.
+ */
 function deriveScopes(tool: { permissions?: Record<string, PermissionScope> }): string[] {
   const scopes = ["execute"];
   for (const [domain, ops] of Object.entries(tool.permissions ?? {})) {
-    for (const op of Object.keys(ops)) {
-      scopes.push(`${domain}.${op}`);
+    for (const [op, granted] of Object.entries(ops)) {
+      if (granted === true) scopes.push(`${domain}.${op}`);
     }
   }
   return scopes;

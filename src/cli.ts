@@ -34,6 +34,7 @@ Commands:
   inspect <name>     Show full manifest for a tool
   search <query>     Route a request (dry run): show the best tool + why
   route <query>      Alias for search
+  discover <query>   Show the minimal capability surface for a request
   policy             Show current policy configuration
   config [a=b ...]   Read or set config values (e.g. port=8080)
   doctor             Diagnose this environment
@@ -68,6 +69,7 @@ export async function run(argv: string[]): Promise<number> {
     case "inspect":
     case "search":
     case "route":
+    case "discover":
     case "benchmark": {
       const ctx = context();
       return await dispatch(command, ctx, argv.slice(1));
@@ -140,9 +142,11 @@ async function dispatch(
       return await removeCommand(ctx, args[0]);
     case "inspect":
       return await inspectCommand(ctx, args[0]);
-    case "search":
-    case "route":
-      return await searchCommand(ctx, args.join(" "));
+case "search":
+  case "route":
+    return await searchCommand(ctx, args.join(" "));
+  case "discover":
+    return await discoverCommand(ctx, args.join(" "));
     case "benchmark":
       return await benchmarkCommand(ctx);
     default:
@@ -227,6 +231,26 @@ async function searchCommand(ctx: CliContext, query: string): Promise<number> {
   return decision.tool ? 0 : 1;
 }
 
+async function discoverCommand(ctx: CliContext, query: string): Promise<number> {
+  if (!query.trim()) {
+    console.error("usage: mcp-nexus discover <query>");
+    return 1;
+  }
+  const { query: q, surface } = await ctx.router.discover(query, ctx.registry.enabled());
+  console.log(`\nRequest: "${q}"`);
+  console.log(`Minimal capability surface:`);
+  for (const t of surface) {
+    console.log(`  - ${t.name} (${(t.confidence * 100).toFixed(0)}%, ${t.provider})${
+      t.matchedCapabilities.length ? ` — ${t.matchedCapabilities.join(", ")}` : ""
+    }`);
+  }
+  if (surface.length === 0) {
+    console.log("  (no tools match — register some first)");
+  }
+  console.log("");
+  return surface.length ? 0 : 1;
+}
+
 function printDecision(query: string, decision: ReturnType<NexusRouter["route"]> extends Promise<infer T> ? T : never): void {
   console.log(`\nRequest: "${query}"`);
   console.log(`Selected: ${decision.tool?.name ?? "(none)"}`);
@@ -295,7 +319,7 @@ async function doctor(ctx: CliContext): Promise<number> {
   const providers = ctx.router["providers"] ?? [];
   for (const p of providers) {
     if (p.name === "heuristic") ok.push("Router heuristic: available (zero-dependency)");
-    if (p.name === "semantic") warn.push("Router semantic: placeholder (V2 roadmap)");
+    if (p.name === "semantic") ok.push("Router semantic: available (zero-dependency fuzzy)");
     if (p.name === "llm") {
       if (typeof p === "object" && p && "apiKey" in p && (p as { apiKey?: string }).apiKey) {
         ok.push("Router llm: configured (Gemini free tier)");
