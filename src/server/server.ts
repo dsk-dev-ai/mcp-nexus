@@ -2,11 +2,12 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import type { ToolRegistry } from "../registry/registry.ts";
-import type { PermissionScope } from "../registry/manifest.ts";
 import type { NexusRouter } from "../router/index.ts";
 import type { PolicyEngine } from "../policy/policy.ts";
 import type { ToolExecutor } from "../executor/executor.ts";
 import type { ActivityLog } from "../telemetry/logger.ts";
+import type { ApprovalStore } from "../policy/approvals.ts";
+import { deriveScopes } from "../policy/scopes.ts";
 
 export interface NexusServerDeps {
   registry: ToolRegistry;
@@ -14,6 +15,8 @@ export interface NexusServerDeps {
   policy: PolicyEngine;
   executor: ToolExecutor;
   activity: ActivityLog;
+  approvals: ApprovalStore;
+  home: string;
 }
 
 const target = z.object({}).passthrough();
@@ -32,14 +35,14 @@ export class NexusMCPServer {
   constructor(deps: NexusServerDeps) {
     this.deps = deps;
     this.server = new McpServer(
-      { name: "mcp-nexus", version: "0.2.0" },
+      { name: "mcp-nexus", version: "0.4.0" },
       { capabilities: { tools: {} } },
     );
     this.registerTools();
   }
 
   private registerTools(): void {
-    const { registry, router, policy, executor, activity } = this.deps;
+    const { registry, router, policy, executor, activity, approvals } = this.deps;
 
     this.server.tool(
       "nexus.register_tool",
@@ -139,12 +142,14 @@ export class NexusMCPServer {
         }
 
         const scopes = deriveScopes(selected);
-        const policyDecision = policy.evaluate(selected, scopes);
+        const policyDecision = policy.evaluate(selected, scopes, approvals);
         if (policyDecision.action === "deny") {
           return { content: [{ type: "text", text: `Blocked by policy: ${policyDecision.reasons.join("; ")}` }] };
         }
         if (policyDecision.action === "approval") {
-          return { content: [{ type: "text", text: `Approval required: ${policyDecision.reasons.join("; ")}` }] };
+          const pending = approvals.request(selected.name, scopes, policyDecision.reasons);
+          approvals.persist(this.deps.home);
+          return { content: [{ type: "text", text: `Approval required (${pending.id}): ${policyDecision.reasons.join("; ")}. Approve via nexus.resolve_approval.` }] };
         }
 
         const result = await executor.execute(selected, args ?? {});
@@ -165,25 +170,40 @@ export class NexusMCPServer {
         return { content: texts };
       },
     );
+
+    this.server.tool(
+      "nexus.approvals",
+      "List pending tool-execution approvals that need an operator decision.",
+      {},
+      async () => {
+        const pending = approvals.list();
+        const text = pending.length === 0
+          ? "No pending approvals."
+          : pending.map((a) => `- ${a.id} [${a.tool}] ${a.reasons.join("; ")} (${a.requestedAt})`).join("\n");
+        return { content: [{ type: "text", text }] };
+      },
+    );
+
+    this.server.tool(
+      "nexus.resolve_approval",
+      "Approve or deny a pending approval; approvals granted this session skip the approval gate.",
+      {
+        id: z.string().describe("approval id"),
+        approved: z.boolean().describe("true to approve and proceed, false to deny"),
+      },
+      async ({ id, approved }) => {
+        const pending = approvals.resolve(id, approved);
+        approvals.persist(this.deps.home);
+        if (!pending) {
+          return { content: [{ type: "text", text: `No pending approval "${id}".` }] };
+        }
+        return { content: [{ type: "text", text: approved ? `Approved ${pending.tool}: ${pending.scopes.join(", ")}` : `Denied ${pending.tool}: ${pending.scopes.join(", ")}` }] };
+      },
+    );
   }
 
   async connect(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
   }
-}
-
-/**
- * A tool's invocation scope is what its manifest explicitly *grants* (truthy
- * ops). Ops declared `false` are the tool declaring what it will not do — they
- * read as "no such capability granted", not as a deny trigger on every call.
- */
-function deriveScopes(tool: { permissions?: Record<string, PermissionScope> }): string[] {
-  const scopes = ["execute"];
-  for (const [domain, ops] of Object.entries(tool.permissions ?? {})) {
-    for (const [op, granted] of Object.entries(ops)) {
-      if (granted === true) scopes.push(`${domain}.${op}`);
-    }
-  }
-  return scopes;
 }

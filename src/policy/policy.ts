@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ToolManifest } from "../registry/manifest.ts";
+import type { ApprovalStore } from "./approvals.ts";
 
 export type PolicyAction = "allow" | "deny" | "approval";
 
@@ -53,7 +54,7 @@ export class PolicyEngine {
     writeFileSync(join(homeDir, "policy.json"), JSON.stringify(this.config, null, 2));
   }
 
-  evaluate(tool: ToolManifest, scopes: string[]): PolicyDecision {
+  evaluate(tool: ToolManifest, scopes: string[], approvals?: ApprovalStore): PolicyDecision {
     const reasons: string[] = [];
     const rule = this.config.rules.find((r) => r.tool === tool.name || r.tool === "*");
 
@@ -63,9 +64,17 @@ export class PolicyEngine {
           return { action: "deny", reasons: [`${tool.name}: ${scope} is blocked by policy`] };
         }
         if (rule.approvals.includes(scope)) {
-          return { action: "approval", reasons: [`${tool.name}: ${scope} requires approval`] };
+          reasons.push(`${tool.name}: ${scope} requires approval`);
         }
       }
+    }
+
+    if (reasons.length > 0) {
+      // every approval-gated scope already granted this session? then proceed
+      const allGranted = rule!.approvals.every((scope) =>
+        !scopes.includes(scope) || approvals?.isGranted(tool.name, scope),
+      );
+      return { action: allGranted ? "allow" : "approval", reasons };
     }
 
     const permissions = tool.permissions ?? {};

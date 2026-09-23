@@ -4,6 +4,22 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-09-23
+
+### Added
+
+- **Live approval flow.** Policy approvals are no longer a dead-end: an
+  invocation that hits an approval gate creates a pending approval entry.
+  - MCP: `nexus.approvals` lists pending; `nexus.resolve_approval {id, approved}`
+    grants/denies; grants are session-scoped per tool+scope so the next
+    `nexus.invoke` proceeds.
+  - CLI: `invoke <query>` routes → policy-checks → prompts interactively to
+    approve/abort; `approvals` lists pending; `resolve <id> +|-` decides.
+- `ApprovalStore` (`.nexus/approvals.json`, pending persisted, grants
+  process-local), `PolicyEngine.evaluate` honors granted scopes.
+- `deriveScopes` shared helper (`src/policy/scopes.ts`) used by CLI and server.
+- 5 approval-flow tests (suite now 46).
+
 ## [0.3.0] - 2026-09-23
 
 ### Added

@@ -9,9 +9,12 @@ import { SemanticRouter } from "./router/semantic.ts";
 import { LlmRouter } from "./router/llm.ts";
 import { NexusRouter } from "./router/index.ts";
 import { PolicyEngine } from "./policy/policy.ts";
+import { ApprovalStore } from "./policy/approvals.ts";
+import { deriveScopes } from "./policy/scopes.ts";
 import { ToolExecutor } from "./executor/executor.ts";
 import { ActivityLog } from "./telemetry/logger.ts";
 import { NexusMCPServer } from "./server/server.ts";
+import { createInterface } from "node:readline";
 
 interface CliContext {
   config: NexusConfig;
@@ -20,6 +23,7 @@ interface CliContext {
   policy: PolicyEngine;
   executor: ToolExecutor;
   activity: ActivityLog;
+  approvals: ApprovalStore;
 }
 
 const HELP = `mcp-nexus — intelligent routing layer for MCP tools
@@ -35,6 +39,9 @@ Commands:
   search <query>     Route a request (dry run): show the best tool + why
   route <query>      Alias for search
   discover <query>   Show the minimal capability surface for a request
+  invoke <query>     Route + policy-check + execute a request (approval prompts interactively)
+  approvals          List pending operator approvals
+  resolve <id> +|-   Approve (+) or deny (-) a pending approval
   policy             Show current policy configuration
   config [a=b ...]   Read or set config values (e.g. port=8080)
   doctor             Diagnose this environment
@@ -70,6 +77,9 @@ export async function run(argv: string[]): Promise<number> {
     case "search":
     case "route":
     case "discover":
+    case "invoke":
+    case "approvals":
+    case "resolve":
     case "benchmark": {
       const ctx = context();
       return await dispatch(command, ctx, argv.slice(1));
@@ -91,6 +101,8 @@ export async function run(argv: string[]): Promise<number> {
       policy: ctx.policy,
       executor: ctx.executor,
       activity: ctx.activity,
+      approvals: ctx.approvals,
+      home: ctx.config.home,
     });
     await server.connect();
     return 0;
@@ -127,6 +139,7 @@ function context(): CliContext {
     policy: PolicyEngine.load(config.home),
     executor: new ToolExecutor(),
     activity: ActivityLog.default(config.home),
+    approvals: ApprovalStore.load(config.home),
   };
 }
 
@@ -147,6 +160,12 @@ case "search":
     return await searchCommand(ctx, args.join(" "));
   case "discover":
     return await discoverCommand(ctx, args.join(" "));
+  case "invoke":
+    return await invokeCommand(ctx, args.join(" "));
+  case "approvals":
+    return await approvalsCommand(ctx);
+  case "resolve":
+    return await resolveCommand(ctx, args);
     case "benchmark":
       return await benchmarkCommand(ctx);
     default:
@@ -229,6 +248,93 @@ async function searchCommand(ctx: CliContext, query: string): Promise<number> {
   const decision = await ctx.router.route(query, ctx.registry.enabled());
   printDecision(query, decision);
   return decision.tool ? 0 : 1;
+}
+
+async function invokeCommand(ctx: CliContext, query: string): Promise<number> {
+  if (!query.trim()) {
+    console.error("usage: mcp-nexus invoke <query>");
+    return 1;
+  }
+  const decision = await ctx.router.route(query, ctx.registry.enabled());
+  if (!decision.tool) {
+    printDecision(query, decision);
+    return 1;
+  }
+
+  const tool = ctx.registry.get(decision.tool.name)!;
+  const scopes = deriveScopes(tool);
+  const policyDecision = ctx.policy.evaluate(tool, scopes, ctx.approvals);
+
+  if (policyDecision.action === "deny") {
+    console.log(`Blocked by policy: ${policyDecision.reasons.join("; ")}`);
+    return 1;
+  }
+
+  if (policyDecision.action === "approval") {
+    console.log(`Approval required: ${policyDecision.reasons.join("; ")}`);
+    const ok = await promptYesNo(
+      `Approve execution of "${tool.name}" (scopes: ${scopes.join(", ")})? `,
+    );
+    if (!ok) {
+      console.log("Aborted by operator.");
+      return 1;
+    }
+    ctx.approvals.resolve(ctx.approvals.request(tool.name, scopes, policyDecision.reasons).id, true);
+    ctx.approvals.persist(ctx.config.home);
+    console.log("Approved for this session.");
+  }
+
+  const result = await ctx.executor.execute(tool, {});
+  ctx.activity.log({
+    tool: tool.name,
+    status: result.status,
+    durationMs: result.durationMs,
+    router: decision.provider,
+    confidence: decision.confidence,
+  });
+
+  console.log(`\nTool: ${tool.name} (${result.status} in ${result.durationMs}ms)`);
+  console.log(result.stdout || "(no stdout)");
+  if (result.stderr) console.log(`stderr: ${result.stderr}`);
+  return result.status === "success" ? 0 : 1;
+}
+
+function promptYesNo(promptText: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(promptText, (answer) => {
+      rl.close();
+      resolve(/^\s*(y|yes)\s*$/i.test(answer));
+    });
+  });
+}
+
+function approvalsCommand(ctx: CliContext): number {
+  const pending = ctx.approvals.list();
+  if (pending.length === 0) {
+    console.log("No pending approvals.");
+    return 0;
+  }
+  for (const a of pending) {
+    console.log(`- ${a.id} [${a.tool}] ${a.reasons.join("; ")} (${a.requestedAt})`);
+  }
+  return 0;
+}
+
+function resolveCommand(ctx: CliContext, args: string[]): number {
+  const [id, vote] = args;
+  if (!id || !vote || !/^[+-]$/.test(vote)) {
+    console.error("usage: mcp-nexus resolve <id> [+|-]");
+    return 1;
+  }
+  const approval = ctx.approvals.resolve(id, vote === "+");
+  if (!approval) {
+    console.error(`No pending approval "${id}".`);
+    return 1;
+  }
+  ctx.approvals.persist(ctx.config.home);
+  console.log(vote === "+" ? `Approved ${approval.tool}: ${approval.scopes.join(", ")}` : `Denied ${approval.tool}: ${approval.scopes.join(", ")}`);
+  return 0;
 }
 
 async function discoverCommand(ctx: CliContext, query: string): Promise<number> {

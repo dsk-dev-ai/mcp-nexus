@@ -32,9 +32,12 @@ processes. Nexus is the boundary.
 }
 ```
 
-`deny` → refuse. `approval` → refuse (V1; interactive approval gating is a
-follow-up). Evaluate scopes include `execute` plus every `domain.op` declared
-in a tool's manifest permissions.
+`deny` → refuse. `approval` → the pending approval is queued and must be
+confirmed by an operator before execution: over the MCP server via
+`nexus.approvals` + `nexus.resolve_approval`, or interactively with
+`mcp-nexus invoke` (prompt) / `mcp-nexus resolve <id> +`. Approved scopes are
+granted for the current process. Evaluate scopes include `execute` plus every
+`domain.op` a tool's manifest permissions grant.
 
 ## Hardening guidance
 
