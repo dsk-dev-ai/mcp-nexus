@@ -52,6 +52,7 @@ function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
  */
 export async function startDashboard(deps: DashboardDeps): Promise<DashboardServerHandle> {
   const port = Number(deps.config.port ?? 3000);
+  const bindHost = deps.config.bindHost ?? "127.0.0.1";
 
   const server = createServer(async (req, res) => {
     const method = req.method ?? "GET";
@@ -69,7 +70,7 @@ export async function startDashboard(deps: DashboardDeps): Promise<DashboardServ
       if (method === "GET" && path === "/api/health") {
         json(res, 200, {
           status: "ok",
-          version: "0.6.0",
+          version: "0.7.0",
           uptime: Math.round(process.uptime()),
           tools: deps.registry.list().length,
         });
@@ -206,7 +207,7 @@ export async function startDashboard(deps: DashboardDeps): Promise<DashboardServ
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(port, "127.0.0.1", () => {
+    server.listen(port, bindHost, () => {
       server.removeListener("error", reject);
       resolve();
     });
@@ -341,7 +342,7 @@ pre{background:#0f1419;border:1px solid var(--border);border-radius:8px;padding:
 </head>
 <body>
 <header>
-  <h1>MCP Nexus <span class="tag">0.6.0</span></h1>
+  <h1>MCP Nexus <span class="tag">0.7.0</span></h1>
   <nav>
     <button data-sec="overview" class="active">Overview</button>
     <button data-sec="tools">Tools</button>

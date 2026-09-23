@@ -29,6 +29,12 @@ Working, documented, tested:
 - [x] SDK + plugin interfaces (0.6.0): `createTool`/`defineCapabilities`/
       `definePermissions`/`registerTool`/`upsertTool`/`buildRouter`, `*Plugin`
       contracts, API reference ([docs/sdk.md](docs/sdk.md), [docs/api.md](docs/api.md))
+- [x] Docker (0.7.0): non-root `Dockerfile` + `docker-compose.yml`
+      (dashboard + registry volume), verified `docker compose up`; CI image
+      build; config expansion (`.env.example`, `MCP_NEXUS_*`, router mode,
+      log level, execution timeout, bind host); verified client matrix
+      ([docs/clients.md](docs/clients.md)); measured perf targets
+      ([docs/performance.md](docs/performance.md))
 
 V1 definition of done:
 

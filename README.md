@@ -209,6 +209,24 @@ Build Nexus-compatible tools and drop-in components with the [SDK](docs/sdk.md)
 `buildRouter`) and the plugin contracts in `src/sdk/interfaces.ts`.
 [API reference](docs/api.md) covers the MCP gateway, dashboard REST API, and CLI.
 
+## Run with Docker
+
+```sh
+docker compose up -d   # dashboard at http://localhost:8080
+docker compose exec nexus node src/index.ts add tools/repoarch.json
+```
+
+Registry/activity persist across restarts (named volume). See
+[docs/dashboard.md](docs/dashboard.md), [docs/performance.md](docs/performance.md),
+and the [client compatibility matrix](docs/clients.md).
+
+## Configuration
+
+Copy `.env.example` to `.env` and adjust (`MCP_NEXUS_PORT`, `MCP_NEXUS_HOST`,
+`MCP_NEXUS_ROUTER_MODE`, `MCP_NEXUS_LOG_LEVEL`, `MCP_NEXUS_EXECUTION_TIMEOUT`,
+optional `MCP_NEXUS_*_API_KEY`). Precedence: defaults < `.nexus/config.json`
+< `.env` < real environment.
+
 ## Security
 
 > **MCP Nexus executes tools on behalf of connected agents. Review tool permissions and execution policies before enabling untrusted tools.**

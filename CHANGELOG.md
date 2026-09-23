@@ -4,6 +4,34 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-23
+
+### Added
+
+- **Docker deployment** (V1 spec §35): `Dockerfile` (node:22-slim, non-root
+  `node` user, no build step), `docker-compose.yml` (dashboard + named-volume
+  registry, `docker compose up` → `http://localhost:8080`),
+  `.dockerignore`. Verified end-to-end: build, health, register tool through
+  the container, registry persists across restart, data owned by uid 1000.
+- **CI docker build job** (spec §34) — image build on every PR.
+- **Expanded configuration** (spec §36): `.env.example` + zero-dependency
+  `.env` loader (`loadDotEnv`/`parseDotEnv`). New `MCP_NEXUS_*` keys — `HOME`,
+  `PORT`, `HOST`, `LOG_LEVEL`, `ROUTER_MODE` (hybrid/heuristic/semantic/llm),
+  `ROUTER_PROVIDERS`, `EXECUTION_TIMEOUT`, `OPENROUTER_API_KEY`,
+  `GEMINI_API_KEY` — with legacy env names (`NEXUS_HOME`, `GEMINI_API_KEY`,
+  ...) still honored. Precedence: defaults < `.nexus/config.json` < `.env` <
+  real env.
+  - `bindHost` (loopback by default; `0.0.0.0` in the image) fixes the
+    port-mapping reachability gap found during Docker verification.
+  - `logLevel`, `executionTimeoutMs` wired into config + CLI executor.
+- **Verified client-compatibility matrix** (`docs/clients.md`, spec §39):
+  machine-verified via the MCP SDK client, plus Claude Desktop / Cursor /
+  VS Code / generic templates with an explicit verified-not-claimed gate.
+- **Measured performance targets** (`docs/performance.md`, spec §40):
+  startup ~0.39s (<2s), heuristic 0.1ms (<50ms), registry 0.1µs, dashboard
+  API ~2–2.5ms (<200ms).
+- 5 config tests (suite now 70).
+
 ## [0.6.0] - 2026-09-23
 
 ### Added

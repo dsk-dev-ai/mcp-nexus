@@ -12,7 +12,7 @@ import { ApprovalStore } from "../src/policy/approvals.ts";
 import { ActivityLog } from "../src/telemetry/logger.ts";
 import { ToolExecutor } from "../src/executor/executor.ts";
 import { startDashboard } from "../src/dashboard/server.ts";
-import type { NexusConfig } from "../src/config.ts";
+import { normalizeConfig } from "../src/config.ts";
 
 const TOOLS = [
   {
@@ -33,11 +33,11 @@ async function withDashboard(fn: (base: string, close: () => Promise<void>) => P
   const home = mkdtempSync(join(tmpdir(), "nexus-dash-"));
   const registry = ToolRegistry.default(home);
   for (const t of TOOLS) registry.add(JSON.stringify(t));
-  const config: NexusConfig = {
+  const config = normalizeConfig({
     home,
     port: 0,
     routerProviders: ["heuristic", "semantic"],
-  };
+  });
   const handle = await startDashboard({
     registry,
     router: new NexusRouter([new HeuristicRouter(), new SemanticRouter()]),
@@ -131,7 +131,7 @@ test("approval flow: queue + approve via API", async () => {
       approvals,
       activity: ActivityLog.default(home),
       executor: new ToolExecutor(),
-      config: { home, port: 0, routerProviders: ["heuristic"] },
+      config: normalizeConfig({ home, port: 0, routerProviders: ["heuristic"] }),
     });
     const b = `http://127.0.0.1:${handle.port}`;
     const list = await (await fetch(`${b}/api/approvals`)).json() as unknown[];
