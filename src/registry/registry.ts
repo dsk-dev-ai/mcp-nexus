@@ -1,12 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseManifest, validateManifest, type ToolManifest } from "./manifest.ts";
+import type { RegistryPlugin } from "../sdk/interfaces.ts";
 
 export type RegistryEntry = ToolManifest & { addedAt: string };
 
 export class ToolNotFoundError extends Error {}
 
-export class ToolRegistry {
+export class ToolRegistry implements RegistryPlugin {
   private tools: Map<string, RegistryEntry>;
   private readonly file: string;
 

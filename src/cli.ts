@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { loadConfig, type NexusConfig } from "./config.ts";
 import { ToolRegistry, ToolNotFoundError } from "./registry/registry.ts";
 import { ManifestValidationError, parseManifest } from "./registry/manifest.ts";
+import { upsertTool } from "./sdk/index.ts";
 import { HeuristicRouter } from "./router/heuristic.ts";
 import { SemanticRouter } from "./router/semantic.ts";
 import { LlmRouter } from "./router/llm.ts";
@@ -208,13 +209,8 @@ function addCommand(ctx: CliContext, input: string | undefined): number {
   try {
     const text = existsSync(input) ? readFileSync(input, "utf8") : input;
     const manifest = parseManifest(text);
-    try {
-      ctx.registry.update(JSON.stringify(manifest));
-      console.log(`Updated tool: ${manifest.name} v${manifest.version}`);
-    } catch {
-      ctx.registry.add(JSON.stringify(manifest));
-      console.log(`Registered tool: ${manifest.name} v${manifest.version}`);
-    }
+    const { added } = upsertTool(ctx.registry, manifest);
+    console.log(`${added ? "Registered" : "Updated"} tool: ${manifest.name} v${manifest.version}`);
     return 0;
   } catch (error) {
     console.error(`add failed: ${message(error)}`);

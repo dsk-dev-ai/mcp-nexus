@@ -202,6 +202,13 @@ Accuracy: 100.0%
 
 Reproducible: `npm start -- benchmark`. The suite (see `CLI Reference → benchmark`) is a deterministic smoke benchmark; the full reusable harness is on the [roadmap](ROADMAP.md).
 
+## SDK & plugins
+
+Build Nexus-compatible tools and drop-in components with the [SDK](docs/sdk.md)
+(`createTool`, `defineCapabilities`, `definePermissions`, `registerTool`,
+`buildRouter`) and the plugin contracts in `src/sdk/interfaces.ts`.
+[API reference](docs/api.md) covers the MCP gateway, dashboard REST API, and CLI.
+
 ## Security
 
 > **MCP Nexus executes tools on behalf of connected agents. Review tool permissions and execution policies before enabling untrusted tools.**

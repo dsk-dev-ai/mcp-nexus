@@ -4,6 +4,29 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-09-23
+
+### Added
+
+- **TypeScript SDK** (`src/sdk/index.ts`, V1 spec §29). Tool authors build a
+  Nexus-compatible manifest without reading server internals:
+  - `createTool(spec)` — build + validate a manifest (throws
+    `ManifestValidationError` before persisting anything)
+  - `defineCapabilities` / `definePermissions` — normalize + dedupe tokens
+  - `registerTool` / `parseAndRegisterTool` / `upsertTool` — publish to a
+    registry (CLI `add` now goes through `upsertTool`, so the CLI and SDK can
+    never diverge)
+  - `buildRouter(providers)` — compose a plugin provider chain
+- **Plugin interfaces** (`src/sdk/interfaces.ts`, V1 spec §30): `RouterPlugin`,
+  `LLMProviderPlugin`, `ExecutorPlugin`, `PolicyProviderPlugin`,
+  `RegistryPlugin`, `TelemetryProviderPlugin`. Every built-in component now
+  declares `implements <Interface>`; conforming replacements drop straight in.
+  `LlmRouter.configured` surfaces provider availability for UIs.
+- **API reference** — `docs/api.md` documents all three surfaces (MCP gateway,
+  dashboard REST, CLI) with request/response shapes and errors
+  (V1 spec §26); `docs/sdk.md` covers authoring tools + plugins.
+- 9 SDK tests (suite now 65).
+
 ## [0.5.0] - 2026-09-23
 
 ### Added

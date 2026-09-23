@@ -1,5 +1,6 @@
 import type { RouterProvider, RoutingResult, RouterAlternative } from "./types.ts";
 import type { RegistryEntry } from "../registry/registry.ts";
+import type { LLMProviderPlugin } from "../sdk/interfaces.ts";
 
 const DEFAULT_MODEL =
   process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
@@ -14,12 +15,17 @@ Never invent tools.`;
  * Reports "unavailable" when no API key is configured, so the router chain
  * degrades gracefully to heuristic/semantic routing.
  */
-export class LlmRouter implements RouterProvider {
+export class LlmRouter implements RouterProvider, LLMProviderPlugin {
   readonly name = "llm";
   private readonly apiKey?: string;
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey;
+  }
+
+  /** True when an API key means the provider can actually route. */
+  get configured(): boolean {
+    return Boolean(this.apiKey);
   }
 
   async route(query: string, tools: RegistryEntry[]): Promise<RoutingResult> {
