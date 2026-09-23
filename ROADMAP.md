@@ -15,7 +15,8 @@ Working, documented, tested:
 - [x] Dynamic capability discovery (`nexus.discover` + CLI `discover`)
 - [x] Provider fallback chain (heuristic → semantic → LLM), LLM optional
 - [x] Policy engine (allow / deny / approval + per-tool permission scopes)
-- [x] Executor (local/stdio subprocess, timeout, `{{arg}}` interpolation)
+- [x] Executor — all transports: local/stdio subprocess, docker (docker run),
+      http (POST `{ input: args }`), timeout, `{{arg}}` interpolation (0.3.0)
 - [x] Telemetry (JSONL activity log + summary)
 - [x] CLI (`start`, `add`, `remove`, `list`, `inspect`, `search/route`, `discover`, `config`, `doctor`, `benchmark`)
 - [x] Deterministic benchmark suite (6 tools / 13 tasks — 100% heuristic accuracy)
@@ -34,7 +35,6 @@ V1 definition of done:
 - Semantic router (local embeddings / vector similarity) — **superseded by
   zero-dep fuzzy router in 0.2.0; embeddings optional if a vector model shows
   clear wins on the harness**
-- Docker and Streamable-HTTP transports (0.3.0)
 - Remote registry integration (browse/install from the official MCP registry)
 - Sandboxed execution for untrusted tools
 - Routing telemetry UI (dashboard v1: tools, activity, policies)

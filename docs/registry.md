@@ -23,9 +23,9 @@ interface ToolManifest {
 `TransportSpec`:
 
 ```ts
-{ type: "local" | "stdio"; command: string[] }   // V1
-{ type: "http"; url: string }                     // roadmap
-{ type: "docker"; image: string; command?: ... }  // roadmap
+{ type: "local" | "stdio"; command: string[] }   // subprocess
+{ type: "http"; url: string; command?: string[] } // POST { input: args } to url
+{ type: "docker"; image: string; command?: string[] } // docker run image [command]
 ```
 
 ## Capability vocabulary

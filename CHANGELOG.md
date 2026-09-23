@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-09-23
+
+### Added
+
+- **All four transport types execute.** `docker` runs `docker run` with
+  interpolated args and a container name; `http` POSTs `{ input: args }` to a
+  Streamable-HTTP/JSON endpoint (with `AbortSignal.timeout`). `local`/`stdio`
+  unchanged.
+- Transport enforcement in manifest validation: `docker` requires `image`,
+  `http` requires `url`.
+- `http-echo` reference tool + HTTP/transport tests incl. non-2xx surfacing and
+  silent-server timeout (suite now 41).
+- YAML-lite parser now handles indented nested maps (`permissions.filesystem`)
+  with a pending-header/list-or-map disambiguation.
+
 ## [0.2.0] - 2026-09-23
 
 ### Added

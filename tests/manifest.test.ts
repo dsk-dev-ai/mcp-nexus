@@ -52,3 +52,43 @@ test("validateManifest type guard accepts valid input", () => {
   validateManifest(manifest);
   assert.ok(true);
 });
+
+test("docker transport requires an image", () => {
+  assert.throws(
+    () => parseManifest(JSON.stringify({
+      name: "x", version: "1", description: "d", capabilities: ["c"],
+      transport: { type: "docker" }, enabled: true,
+    })),
+    /docker transport requires an image/,
+  );
+});
+
+test("http transport requires a url", () => {
+  assert.throws(
+    () => parseManifest(JSON.stringify({
+      name: "x", version: "1", description: "d", capabilities: ["c"],
+      transport: { type: "http" }, enabled: true,
+    })),
+    /http transport requires a url/,
+  );
+});
+
+test("two nested objects in YAML do not share state", () => {
+  const manifest = parseManifest(`
+name: x
+version: 1.0.0
+description: d
+capabilities:
+  - c
+transport:
+  type: local
+  command: ["echo"]
+permissions:
+  filesystem:
+    read: true
+    write: false
+enabled: true
+`);
+  assert.deepEqual(manifest.transport, { type: "local", command: ["echo"] });
+  assert.deepEqual(manifest.permissions, { filesystem: { read: true, write: false } });
+});

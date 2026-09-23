@@ -1,0 +1,9 @@
+{
+  "name": "http-echo",
+  "version": "1.0.0",
+  "description": "Send a payload to a JSON endpoint and return its response (HTTP transport example).",
+  "capabilities": ["http", "api", "webhook"],
+  "transport": { "type": "http", "url": "http://localhost:8787/tool" },
+  "permissions": { "network": { "access": true } },
+  "enabled": true
+}
