@@ -37,7 +37,9 @@ export class NexusRouter {
       }
       if (result.reliability === "unavailable") continue;
       const decision = result.decision!;
-      if (decision.tool && decision.confidence >= THRESHOLD) {
+      // Strict: a decision must *exceed* the threshold to short-circuit the chain,
+      // so calibrated ties (exactly 0.5) defer to the next provider.
+      if (decision.tool && decision.confidence > THRESHOLD) {
         return decision;
       }
     }

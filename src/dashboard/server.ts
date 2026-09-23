@@ -70,7 +70,7 @@ export async function startDashboard(deps: DashboardDeps): Promise<DashboardServ
       if (method === "GET" && path === "/api/health") {
         json(res, 200, {
           status: "ok",
-          version: "0.7.0",
+          version: "0.8.0",
           uptime: Math.round(process.uptime()),
           tools: deps.registry.list().length,
         });
@@ -342,7 +342,7 @@ pre{background:#0f1419;border:1px solid var(--border);border-radius:8px;padding:
 </head>
 <body>
 <header>
-  <h1>MCP Nexus <span class="tag">0.7.0</span></h1>
+  <h1>MCP Nexus <span class="tag">0.8.0</span></h1>
   <nav>
     <button data-sec="overview" class="active">Overview</button>
     <button data-sec="tools">Tools</button>

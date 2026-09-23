@@ -17,6 +17,14 @@ import { ActivityLog } from "./telemetry/logger.ts";
 import { NexusMCPServer } from "./server/server.ts";
 import { startDashboard } from "./dashboard/server.ts";
 import { createInterface } from "node:readline";
+import {
+  referenceCatalog,
+  syntheticCatalog,
+  buildTasks,
+  buildLargeTasks,
+  runBenchProvider,
+  formatBench,
+} from "./bench/suite.ts";
 
 interface CliContext {
   config: NexusConfig;
@@ -488,70 +496,50 @@ async function doctor(ctx: CliContext): Promise<number> {
 }
 
 async function benchmarkCommand(ctx: CliContext): Promise<number> {
-  const { suite, tasks } = benchmarkSuite();
+  const heuristic = new HeuristicRouter();
+  const semantic = new SemanticRouter();
+  const hybrid = new NexusRouter([heuristic, semantic]);
 
-  const results: Array<{ query: string; expected: string; got: string | null; correct: boolean }> = [];
-  for (const task of tasks) {
-    const decision = await ctx.router.route(task.query, suite);
-    results.push({
-      query: task.query,
-      expected: task.expected,
-      got: decision.tool?.name ?? null,
-      correct: decision.tool?.name === task.expected,
-    });
+  const reference = referenceCatalog();
+  const { tasks } = buildTasks();
+  const largeCatalog = syntheticCatalog(50);
+  const largeTasks = buildLargeTasks(largeCatalog, 20);
+
+  const hybridProvider = {
+    name: "hybrid",
+    async route(q: string, t: ReturnType<ToolRegistry["list"]>) {
+      const decision = await hybrid.route(q, t);
+      return { reliability: "available" as const, decision };
+    },
+  };
+  const results = [];
+  results.push(await runBenchProvider(heuristic, reference, tasks));
+  results.push(await runBenchProvider(semantic, reference, tasks));
+  results.push(await runBenchProvider(hybridProvider, reference, tasks));
+  const large = await runBenchProvider(hybridProvider, largeCatalog, largeTasks);
+  results.push(large);
+
+  console.log(`\nMCP Nexus Router Benchmark`);
+  console.log(`Reference catalog: ${reference.length} tools / ${tasks.length} tasks (exact, semantic, ambiguous, unknown)`);
+  console.log(`Large collection:  ${largeCatalog.length} tools / ${largeTasks.length} tasks`);
+  console.log(`LLM provider:      offline — not benchmarked (no API round-trip)`);
+  const labels = ["Heuristic", "Semantic", "Hybrid (fallback chain)", "Hybrid (large, 50 tools)"];
+  for (let i = 0; i < results.length; i++) {
+    console.log(formatBench(labels[i] ?? results[i]!.provider, results[i]!));
+    console.log("");
   }
 
-  const correct = results.filter((r) => r.correct).length;
-
-  console.log(`\nMCP Nexus Benchmark (heuristic router)`);
-  console.log(`Tools in catalog: ${suite.length}`);
-  console.log(`Tasks: ${tasks.length}`);
-  console.log(`Accuracy: ${((correct / tasks.length) * 100).toFixed(1)}%`);
-  const failures = results.filter((r) => !r.correct);
-  if (failures.length > 0) {
-    console.log(`\nFailures:`);
-    for (const f of failures) {
-      console.log(`  - "${f.query}" expected=${f.expected} got=${f.got ?? "none"}`);
+  const allFailures = results.flatMap((r) => r.failures);
+  if (allFailures.length > 0) {
+    const hard = allFailures.filter((f) => f.category === "exact" || f.category === "semantic");
+    if (hard.length > 0) {
+      console.log(`\nHard failures:`);
+      for (const f of hard) {
+        console.log(`  - "${f.query}" expected=${f.expected} got=${f.got ?? "none"}`);
+      }
     }
   }
-  return failures.length ? 1 : 0;
-}
-
-function benchmarkSuite(): { suite: ReturnType<ToolRegistry["list"]>; tasks: Array<{ query: string; expected: string }> } {
-  const tools = [
-    ["repoarch", "Analyze repository architecture, structure and dependencies of a project", ["repository-analysis", "architecture", "dependencies"]],
-    ["ctx", "Pack a project into a single file for LLM context", ["context-packing", "codebase-summary"]],
-    ["dependency-audit", "Scan dependencies for vulnerable or insecure packages", ["security", "dependency-audit"]],
-    ["env-proof", "Validate environment variables for Node and TypeScript projects", ["env-validation", "configuration"]],
-    ["git-inspector", "Inspect git history and blame: who changed a file, and when", ["git", "history", "blame"]],
-    ["secret-scanner", "Scan a repository for leaked secrets and API keys", ["security", "secrets"]],
-  ] as Array<[string, string, string[]]>;
-
-  const registry = ToolRegistry.default(join(tmpdir(), `mcp-nexus-bench-${Date.now()}`));
-  for (const [name, description, capabilities] of tools) {
-    registry.add(JSON.stringify({
-      name, version: "1.0.0", description, capabilities,
-      transport: { type: "local", command: ["echo"] }, enabled: true,
-    }));
-  }
-
-  const tasks = ([
-    ["diagram my repository architecture", "repoarch"],
-    ["what does my project structure look like", "repoarch"],
-    ["check for vulnerable dependencies", "dependency-audit"],
-    ["are my npm packages secure", "dependency-audit"],
-    ["find leaked secrets in this repo", "secret-scanner"],
-    ["scan for API keys", "secret-scanner"],
-    ["pack this codebase into one file", "ctx"],
-    ["make a single context file for my LLM", "ctx"],
-    ["check my env variables are set", "env-proof"],
-    ["validate configuration for node", "env-proof"],
-    ["show me recent git commits", "git-inspector"],
-    ["who changed this file last", "git-inspector"],
-    ["analyze my repository structure and then check dependencies", "repoarch"],
-  ] as Array<[string, string]>).map(([query, expected]) => ({ query, expected }));
-
-  return { suite: registry.list(), tasks };
+  return results.some((r) => r.byCategory.exact.correct < r.byCategory.exact.total || r.byCategory.semantic.correct < r.byCategory.semantic.total) ? 1 : 0;
 }
 
 function message(error: unknown): string {

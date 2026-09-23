@@ -4,6 +4,38 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-09-24
+
+### Added
+
+- **Benchmark v2** (V1 spec §31): deterministic offline `src/bench/suite.ts`
+  (reference 6-tool catalog + task engine), `runBenchProvider`/
+  `formatBench`, and reference-accuracy assertions in
+  `tests/bench.test.ts`. Reporter: `mcp-nexus benchmark` (32-task reference
+  suite + optional large 50-tool collection). Numbers are deterministic and
+  reproducibly tied to `docs/benchmarks.md`.
+- **Failure-path determinism** (`tests/failure.test.ts`): connection-refused
+  tools error cleanly, HTTP-500 providers surface the status line, garbage
+  HTTP-200 bodice tolerated, a throwing provider recovers inside the chain
+  (§6), and unknown queries defer without crash (§4).
+- **Doctor transport checks** (V1 spec §22): per-tool capability-selection
+  diagnostics to complement the existing §23 server-health checks.
+
+### Changed
+
+- Heuristic router confidence is margin-calibrated
+  (`best / (best + second)`, ≤ 0.5 ties); the router gate is now strict
+  (`> THRESHOLD`), so indifferent/quoted paraphrases defer to the semantic
+  layer instead of being force-mapped. Reference hybrid accuracy over the
+  §31 suite: 78.1% (84.4% heuristic / 71.9% semantic alone); large
+  50-tool collection routes deterministically at 100% / < 5ms offline.
+
+### Fixed
+
+- Semantic router layer now owns the paraphrase intents the heuristic margin
+  defers (§4 §5 §6), and the §31 reference task suite stays 32/32
+  deterministic.
+
 ## [0.7.0] - 2026-09-23
 
 ### Added

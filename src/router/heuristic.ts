@@ -99,7 +99,13 @@ export class HeuristicRouter implements RouterProvider, RouterPlugin {
 
     const ranked = [...scored].sort((a, b) => b.score - a.score);
     const best = ranked[0]!;
-    const confidence = best.score / maxScore;
+    const second = ranked[1];
+    // Margin-calibrated confidence: a dominant match → 1.0; a tie → 0.5,
+    // which the NexusRouter gate (> 0.5) then defers to the semantic layer.
+    const confidence =
+      best.score <= 0 ? 0
+      : !second || second.score <= 0 ? 1
+      : best.score / (best.score + second.score);
 
     if (confidence < this.threshold) {
       return {
