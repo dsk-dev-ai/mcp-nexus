@@ -65,6 +65,12 @@ export function validateManifest(m: unknown): asserts m is ToolManifest {
   if ((transport.type === "local" || transport.type === "stdio") && !transport.command?.length) {
     throw new ManifestValidationError(`${transport.type} transport requires a command`);
   }
+  if (transport.type === "docker" && !transport.image) {
+    throw new ManifestValidationError("docker transport requires an image");
+  }
+  if (transport.type === "http" && !transport.url) {
+    throw new ManifestValidationError("http transport requires a url");
+  }
 }
 
 export function parseManifest(text: string): ToolManifest {
@@ -82,39 +88,61 @@ export function parseManifest(text: string): ToolManifest {
   return parsed;
 }
 
-/** Minimal YAML subset parser: flat scalars, top-level "- " lists, nested objects. */
+/** Minimal YAML subset parser: flat scalars, "- " lists, indented nested objects. */
 function yamlLite(text: string): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  let currentKey: string | null = null;
-  const currentNested: Record<string, unknown> = {};
+  // stack of { indent, obj } map scopes we are currently inside
+  const stack: Array<{ indent: number; obj: Record<string, unknown> }> = [{ indent: -1, obj: out }];
+  // a `key:` line with no value: either a nested map or a list, decided on the
+  // next deeper line
+  let pending: { indent: number; key: string; parent: Record<string, unknown> } | null = null;
+
+  const parentFor = (indent: number): Record<string, unknown> => {
+    while (stack.length > 1 && stack[stack.length - 1]!.indent >= indent) stack.pop();
+    return stack[stack.length - 1]!.obj;
+  };
 
   for (const raw of text.split("\n")) {
     if (!raw.trim() || raw.trim().startsWith("#")) continue;
     const indent = raw.match(/^\s*/)?.[0].length ?? 0;
     const line = raw.trim();
-    if (indent === 0) {
-      const colon = line.indexOf(":");
-      if (colon === -1) throw new Error(`invalid line: ${line}`);
-      currentKey = line.slice(0, colon).trim();
-      const value = line.slice(colon + 1).trim();
-      if (value === "" || value === "|") {
-        out[currentKey] = currentNested;
-      } else {
-        out[currentKey] = coerce(value);
-      }
-    } else if (currentKey) {
-      // top-level list item: "- value"
+
+    // deeper line arriving after a header: commit it as map or list
+    if (pending && indent > pending.indent) {
+      const { key, parent } = pending;
       if (line.startsWith("- ")) {
         const item = coerce(line.slice(2));
-        const existing = out[currentKey];
+        const existing = parent[key];
         if (Array.isArray(existing)) existing.push(item);
-        else out[currentKey] = [item];
-      } else {
-        const colon = line.indexOf(":");
-        const key = colon === -1 ? line : line.slice(0, colon).trim();
-        const rawValue = colon === -1 ? "true" : line.slice(colon + 1).trim();
-        currentNested[key] = rawValue === "" || rawValue === "true" ? true : coerce(rawValue);
+        else parent[key] = [item];
+        continue; // still inside the list — header stays pending
       }
+      const nested: Record<string, unknown> = {};
+      parent[key] = nested;
+      stack.push({ indent: pending.indent, obj: nested });
+      pending = null;
+    } else if (pending && indent <= pending.indent) {
+      pending = null; // header was an empty value
+      if (line.startsWith("- ")) {
+        const parent = parentFor(indent);
+        throw new Error("list item must follow a key: line on its own indent");
+      }
+    }
+
+    if (line.startsWith("- ")) {
+      throw new Error("list item must follow a 'key:' line at a deeper indent");
+    }
+
+    const colon = line.indexOf(":");
+    if (colon === -1) throw new Error(`invalid line: ${line}`);
+    const key = line.slice(0, colon).trim();
+    const value = line.slice(colon + 1).trim();
+    const parent = parentFor(indent);
+
+    if (value === "" || value === "|") {
+      pending = { indent, key, parent };
+    } else {
+      parent[key] = coerce(value);
     }
   }
   return out;

@@ -39,7 +39,7 @@
 | `src/registry/` | `manifest.ts` (schema+validation), `registry.ts` (file store) |
 | `src/router/` | `types.ts`, `heuristic.ts`, `semantic.ts`, `llm.ts`, `index.ts` (fallback) |
 | `src/policy/policy.ts` | global rules + per-tool permission scopes |
-| `src/executor/executor.ts` | transport dispatch + subprocess execution |
+| `src/executor/executor.ts` | transport dispatch: local/stdio subprocess, docker run, http POST |
 | `src/telemetry/logger.ts` | JSONL activity log |
 | `src/cli.ts` | command surface (shell-free, uses the same components) |
 | `src/config.ts` | env + `.nexus/config.json` |

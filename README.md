@@ -48,15 +48,15 @@ MCP Nexus answers with a **capability surface**: rather than dumping every tool,
                                ▼
                          TOOL RUNNER
                                │
-                  ┌────────────┼────────────┐
-                  ▼            ▼            ▼
-                local        stdio       http/docker*
-                               │
-                               ▼
-                            MCP TOOL
+┌────────────┼────────────┐
+                   ▼            ▼            ▼
+                 local        stdio       docker/http
+                                │
+                                ▼
+                             MCP TOOL
 ```
 
-`*` LLM is **optional**. Semantic/LLM/docker/HTTP are roadmap items; V1 runs fully with the zero-dependency heuristic router — no GPU, no API key, no internet required.
+`*` LLM is **optional**. MCP Nexus runs fully with the zero-dependency router stack (heuristic + fuzzy semantic) — no GPU, no API key, no internet required. `http` and `docker` transports execute tools over a JSON POST endpoint or `docker run`.
 
 ## Quick start
 
@@ -147,7 +147,8 @@ heuristic → semantic → llm
 ```
 
 - `heuristic` — deterministic keyword/capability scoring, embedded stemmer.
-- `semantic` — vector embeddings (roadmap).
+- `semantic` — zero-dependency character-bigram / IDF fuzzy router; recovers
+  typos the exact-token heuristic misses ("archtecture", "vulnerbilities").
 - `llm` — Gemini free tier via REST; **reports "unavailable" when no `GEMINI_API_KEY` is set**, so the chain never depends on it.
 
 ## Tool manifests
@@ -217,12 +218,12 @@ src/
 ├── cli.ts               # CLI surface
 ├── config.ts            # env + .nexus/config.json
 ├── registry/            # manifest schema + file store
-├── router/              # heuristic, semantic (stub), llm (optional), fallback chain
+├── router/              # heuristic + fuzzy semantic (zero-dep), llm (optional), fallback chain
 ├── policy/              # allow/deny/approval engine
-├── executor/            # local/stdio subprocess runner
+├── executor/            # transports: local/stdio subprocess, docker run, http POST
 ├── telemetry/           # JSONL activity log
 └── server/              # MCP server (stdio)
-tests/                   # node:test suite (30 tests)
+tests/                   # node:test suite (40 tests)
 tools/                   # reference tool manifests
 docs/                    # architecture, registry, routing, security, integrations
 ```
@@ -231,8 +232,9 @@ docs/                    # architecture, registry, routing, security, integratio
 
 | Phase | Focus |
 | --- | --- |
-| V1 (current) | Registry, heuristic router, policy, local/stdio execution, CLI, benchmark |
-| V2 | Semantic routing (embeddings), docker/http transports, remote-registry integration, sandboxing |
+| V1 (current) | Registry, heuristic + fuzzy semantic routers, dynamic discovery, policy, 4 transport types, CLI, benchmark |
+| V2 | Embedding-based semantic router, remote-registry integration, sandboxed execution, dashboard |
+| V3 | Distributed routing, multi-user auth, advanced policy, tool reputation/health |
 | V3 | Distributed routing, multi-user auth, advanced policy, tool reputation/health |
 
 Full detail in [ROADMAP.md](ROADMAP.md).
