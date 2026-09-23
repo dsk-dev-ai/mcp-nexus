@@ -1,0 +1,9 @@
+{
+  "name": "git-inspector",
+  "version": "1.0.0",
+  "description": "Inspect git history and blame: who changed a file, and when.",
+  "capabilities": ["git", "history", "blame"],
+  "transport": { "type": "local", "command": ["git", "log", "--oneline"] },
+  "permissions": { "git": { "read": true, "write": false }, "filesystem": { "read": true, "write": false } },
+  "enabled": true
+}

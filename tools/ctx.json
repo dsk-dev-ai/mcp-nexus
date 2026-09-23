@@ -1,0 +1,9 @@
+{
+  "name": "ctx",
+  "version": "1.0.0",
+  "description": "Pack any project into a single file for your AI/LLM context.",
+  "capabilities": ["context-packing", "codebase-summary"],
+  "transport": { "type": "local", "command": ["ctx"] },
+  "permissions": { "filesystem": { "read": true, "write": true } },
+  "enabled": true
+}

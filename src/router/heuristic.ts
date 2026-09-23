@@ -137,7 +137,10 @@ export function stem(word: string): string {
   if (w.endsWith("ity") && w.length > 5) return w.slice(0, -3);
   if (w.endsWith("ing") && w.length > 5) return w.slice(0, -3);
   if (w.endsWith("ed") && w.length > 4) return w.slice(0, -2);
-  if (w.endsWith("es") && w.length > 4) return w.slice(0, -2);
+  // "boxes" -> "box", but "files" must fall through to "file"
+  if (w.endsWith("es") && w.length > 4 && ["s", "x", "z"].includes(w[w.length - 3]!)) {
+    return w.slice(0, -2);
+  }
   if (w.endsWith("s") && w.length > 3) return w.slice(0, -1);
   // security ~ secure, structure ~ structural
   if (w.endsWith("al") && w.length > 4) return w.slice(0, -2);

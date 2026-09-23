@@ -1,0 +1,9 @@
+{
+  "name": "repoarch",
+  "version": "1.0.0",
+  "description": "Turn any codebase into beautiful architecture diagrams — one command, no AI, no server.",
+  "capabilities": ["repository-analysis", "architecture", "dependencies"],
+  "transport": { "type": "local", "command": ["repoarch"] },
+  "permissions": { "filesystem": { "read": true, "write": false } },
+  "enabled": true
+}
