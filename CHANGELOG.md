@@ -4,6 +4,26 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-09-23
+
+### Added
+
+- **Web dashboard** (`mcp-nexus dashboard`). Dependency-free single-page app
+  served by `node:http` on `127.0.0.1` (port from config, default 3000).
+  Sections: Overview (stats + most-used), Tools (enable/disable, health,
+  detail), Router (live playground), Activity, Approvals (approve/deny),
+  Policies, Benchmark (live accuracy run), Settings (masked config).
+  - REST API: `GET /api/health`, `/api/summary`, `/api/tools`,
+    `GET /api/tools/:name`, `POST /api/tools/:name/enable`,
+    `GET|POST /api/route`, `GET /api/activity`, `/api/policies`,
+    `/api/approvals` + `POST /api/approvals/:id`, `/api/config`,
+    `/api/benchmark`.
+- `ActivityRecord.executionId` — every execution gets a stable `exec_*` id
+  (shown in the Activity view).
+- `PolicyEngine.snapshot` — serializable policy accessor; dashboard + CLI
+  `policy` now emit the clean `{default, rules}` shape.
+- 10 dashboard tests (suite now 56).
+
 ## [0.4.0] - 2026-09-23
 
 ### Added

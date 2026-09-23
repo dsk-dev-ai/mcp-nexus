@@ -35,7 +35,7 @@ export class NexusMCPServer {
   constructor(deps: NexusServerDeps) {
     this.deps = deps;
     this.server = new McpServer(
-      { name: "mcp-nexus", version: "0.4.0" },
+      { name: "mcp-nexus", version: "0.5.0" },
       { capabilities: { tools: {} } },
     );
     this.registerTools();

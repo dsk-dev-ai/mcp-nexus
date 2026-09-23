@@ -14,6 +14,7 @@ import { deriveScopes } from "./policy/scopes.ts";
 import { ToolExecutor } from "./executor/executor.ts";
 import { ActivityLog } from "./telemetry/logger.ts";
 import { NexusMCPServer } from "./server/server.ts";
+import { startDashboard } from "./dashboard/server.ts";
 import { createInterface } from "node:readline";
 
 interface CliContext {
@@ -40,6 +41,7 @@ Commands:
   route <query>      Alias for search
   discover <query>   Show the minimal capability surface for a request
   invoke <query>     Route + policy-check + execute a request (approval prompts interactively)
+  dashboard          Start the web dashboard (REST API + UI)
   approvals          List pending operator approvals
   resolve <id> +|-   Approve (+) or deny (-) a pending approval
   policy             Show current policy configuration
@@ -70,6 +72,7 @@ export async function run(argv: string[]): Promise<number> {
     case "doctor":
     case "list":
     case "policy":
+    case "dashboard":
       break;
     case "add":
     case "remove":
@@ -118,6 +121,30 @@ export async function run(argv: string[]): Promise<number> {
 
   if (command === "policy") {
     return await policyCommand(ctx);
+  }
+
+  if (command === "dashboard") {
+    const handle = await startDashboard({
+      registry: ctx.registry,
+      router: ctx.router,
+      policy: ctx.policy,
+      approvals: ctx.approvals,
+      activity: ctx.activity,
+      executor: ctx.executor,
+      config: ctx.config,
+    });
+    console.log(`MCP Nexus dashboard: http://127.0.0.1:${handle.port}/`);
+    console.log("Press Ctrl-C to stop.");
+    await new Promise<void>((resolve) => {
+      const stop = (): void => {
+        void handle.close().then(resolve);
+        process.off("SIGINT", stop);
+        process.off("SIGTERM", stop);
+      };
+      process.on("SIGINT", stop);
+      process.on("SIGTERM", stop);
+    });
+    return 0;
   }
 
   return 1;
@@ -374,7 +401,7 @@ function printDecision(query: string, decision: ReturnType<NexusRouter["route"]>
 }
 
 function policyCommand(ctx: CliContext): number {
-  console.log(JSON.stringify(ctx.policy, null, 2));
+  console.log(JSON.stringify(ctx.policy.snapshot, null, 2));
   return 0;
 }
 
