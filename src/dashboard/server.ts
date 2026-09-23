@@ -90,6 +90,8 @@ export async function startDashboard(deps: DashboardDeps): Promise<DashboardServ
             : 100,
           avgLatencyMs: summary.avgDurationMs,
           byTool: summary.byTool,
+          byRouter: summary.byRouter,
+          byToolAvgMs: summary.byToolAvgMs,
           byStatus: summary.byStatus,
           pendingApprovals: deps.approvals.list().length,
         });
@@ -385,7 +387,26 @@ async function loadSummary(){
   const s=await j("/api/summary");
   const cards=[["Tools",s.tools],["Enabled",s.enabled],["Calls",s.calls],["Success",s.successRate+"%"],["Avg latency",s.avgLatencyMs+"ms"],["Pending approvals",s.pendingApprovals]];
   $("#sumcards").innerHTML=cards.map(c=>'<div class="card"><div class="k">'+c[0]+'</div><div class="v">'+c[1]+'</div></div>').join("");
-  $("#usagestbl").innerHTML="<tr><th>Tool</th><th>Calls</th></tr>"+Object.entries(s.byTool).sort((a,b)=>b[1]-a[1]).map(([t,n])=>'<tr><td>'+esc(t)+'</td><td>'+n+'</td></tr>').join("")||"<tr><td class='muted' colspan='2'>no activity yet</td></tr>";
+  renderProviderSplit("router-split", s.byRouter||{});
+  renderToolLatency("tool-latency", s.byToolAvgMs||{});
+}
+function renderProviderSplit(id,byRouter){
+  const entries=Object.entries(byRouter).sort((a,b)=>b[1]-a[1]);
+  const total=entries.reduce((n,[,c])=>n+c,0)||1;
+  $("#"+id).innerHTML='<div class="split"><div class="split-track">'+
+    entries.map(([router,count])=>{
+      const w=Math.round(1000*count/total)/10;
+      const color=router==="heuristic"?"#8ae2ff":router==="semantic"?"#b39dff":router==="hybrid"?"#7de2a6":"#d9a7ff"; // heur/sem/hybrid/other
+      return '<div class="split-seg" style="background:'+color+';width:'+w+'%" title="'+esc(router)+': '+count+'"></div>';}).join("")+'</div>'+
+    entries.map(([router,count])=>{
+      const color=router==="heuristic"?"#8ae2ff":router==="semantic"?"#b39dff":router==="hybrid"?"#7de2a6":"#d9a7ff";
+      return '<span class="leg"><i style="background:'+color+'"></i>'+esc(router)+' <b>'+count+'</b> <span class="muted">('+Math.round(100*total===0?0:count/total*100)+'%)</span></span>';}).join("")||'<span class="muted">no routed activity yet — run the benchmark or invoke a tool</span>';
+}
+function renderToolLatency(id,avgMsByTool){
+  const rows=Object.entries(avgMsByTool).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const max=Math.max(...rows.map(([,v])=>v),1);
+  $("#"+id).innerHTML=rows.map(([tool,avg])=>
+    '<div class="lat-row"><span class="lat-tool">'+esc(tool)+'</span><span class="lat-track"><span class="lat-bar" style="width:'+Math.round(100*avg/max)+'%"></span></span><span class="lat-ms">'+avg+'ms</span></div>').join("")||'<span class="muted">no latency series yet</span>';
 }
 async function loadTools(){
   const tools=await j("/api/tools");
