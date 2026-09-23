@@ -38,6 +38,11 @@ export class PolicyEngine {
     this.config = config;
   }
 
+  /** Serializable snapshot of the active policy. */
+  get snapshot(): PolicyConfig {
+    return this.config;
+  }
+
   static load(homeDir: string): PolicyEngine {
     const file = join(homeDir, "policy.json");
     if (!existsSync(file)) return new PolicyEngine();

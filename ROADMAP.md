@@ -20,7 +20,10 @@ Working, documented, tested:
 - [x] Executor — all transports: local/stdio subprocess, docker (docker run),
       http (POST `{ input: args }`), timeout, `{{arg}}` interpolation (0.3.0)
 - [x] Telemetry (JSONL activity log + summary)
-- [x] CLI (`start`, `add`, `remove`, `list`, `inspect`, `search/route`, `discover`, `config`, `doctor`, `benchmark`)
+- [x] Web dashboard (0.5.0): single-page UI + REST API — overview, tools
+      (enable/disable), router playground, activity, approvals, policies,
+      benchmark, settings ([docs/dashboard.md](docs/dashboard.md))
+- [x] CLI (`start`, `add`, `remove`, `list`, `inspect`, `search/route`, `discover`, `config`, `doctor`, `benchmark`, `invoke`, `approvals`, `resolve`, `dashboard`)
 - [x] Deterministic benchmark suite (6 tools / 13 tasks — 100% heuristic accuracy)
 - [x] Reference tools, tests, CI, Apache-2.0
 
@@ -31,6 +34,7 @@ V1 definition of done:
 - Policy checks every execution
 - Reproducible benchmark results published in README
 - Works on any laptop (no GPU, no API key required)
+- Dashboard is part of V1 per the verification spec (§13–20, §26)
 
 ## V2 — Intelligent routing
 

@@ -2,6 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export interface ActivityRecord {
+  executionId: string;
   tool: string;
   status: string;
   durationMs: number;
@@ -15,6 +16,12 @@ export interface ActivitySummary {
   byStatus: Record<string, number>;
   byTool: Record<string, number>;
   avgDurationMs: number;
+}
+
+let execCounter = 0;
+
+export function makeExecutionId(): string {
+  return `exec_${Date.now().toString(36)}${(execCounter++).toString(36)}`;
 }
 
 /**
@@ -33,8 +40,15 @@ export class ActivityLog {
     return new ActivityLog(join(homeDir, "activity.jsonl"));
   }
 
-  log(record: Omit<ActivityRecord, "timestamp">): void {
-    appendFileSync(this.file, JSON.stringify({ ...record, timestamp: new Date().toISOString() }) + "\n");
+  log(record: Omit<ActivityRecord, "timestamp" | "executionId">): void {
+    appendFileSync(
+      this.file,
+      JSON.stringify({
+        ...record,
+        executionId: makeExecutionId(),
+        timestamp: new Date().toISOString(),
+      }) + "\n",
+    );
   }
 
   summary(): ActivitySummary {

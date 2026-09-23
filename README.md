@@ -184,6 +184,10 @@ See `tools/` for 5 reference implementations, or the [registry docs](docs/regist
 | `mcp-nexus config [a=b ...]` | Read/write `.nexus/config.json` |
 | `mcp-nexus doctor` | Diagnose the environment |
 | `mcp-nexus benchmark` | Run the routing benchmark |
+| `mcp-nexus invoke <query>` | Route → policy-check → execute (approval prompts) |
+| `mcp-nexus approvals` | List pending operator approvals |
+| `mcp-nexus resolve <id> +\|-` | Approve/deny a pending approval |
+| `mcp-nexus dashboard` | Start the local web dashboard + REST API ([docs](docs/dashboard.md)) |
 
 ## Benchmarks
 
@@ -232,7 +236,7 @@ docs/                    # architecture, registry, routing, security, integratio
 
 | Phase | Focus |
 | --- | --- |
-| V1 (current) | Registry, heuristic + fuzzy semantic routers, dynamic discovery, policy, 4 transport types, CLI, benchmark |
+| V1 (current) | Registry, heuristic + fuzzy semantic routers, dynamic discovery, policy, 4 transport types, approvals, dashboard, CLI, benchmark |
 | V2 | Embedding-based semantic router, remote-registry integration, sandboxed execution, dashboard |
 | V3 | Distributed routing, multi-user auth, advanced policy, tool reputation/health |
 | V3 | Distributed routing, multi-user auth, advanced policy, tool reputation/health |
