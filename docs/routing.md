@@ -12,8 +12,8 @@ confidence ≥ 0.5 and a tool wins immediately.
 heuristic ── confident? ──► decision
     │ no
     ▼
-semantic  ── (V2: embeddings) currently "unavailable"
-    │
+semantic  ── zero-dep bigram similarity (IDF-weighted) ──► decision
+    │ no
     ▼
 llm        ── needs GEMINI_API_KEY, else "unavailable"
     │
@@ -21,7 +21,8 @@ llm        ── needs GEMINI_API_KEY, else "unavailable"
 fallback   ── "no confident match", explains and suggests rephrasing
 ```
 
-> The system **never depends on an LLM**. V1 works fully with heuristic alone.
+> The system **never depends on an LLM**. V1 works fully with heuristic +
+> semantic alone.
 
 ## Heuristic scoring
 
@@ -36,6 +37,21 @@ score = nameHits × 1.5 + capHits × 1.2 + descHits × 0.5
 - A light embedded stemmer normalizes plurals/suffixes
   (`dependencies→dependency`, `secure↔security`).
 - `confidence = bestScore / maxScore`.
+
+## Semantic scoring (V1)
+
+The semantic provider tolerates typos and spelling drift. Each query token is
+compared against every index term with **character-bigram Sørensen–Dice
+similarity**; matches are weighted by **IDF** so distinctive vocabulary drives
+the decision:
+
+```
+score = Σ queryToken → bestTerm dice_sim × (1 + idf(term))
+```
+
+Because bigram similarity ignores letter order drift, "archtecture" and
+"vulnerbilities" still land on the right tool when the heuristic router finds
+no exact overlap. Deterministic, zero dependencies, no network.
 
 ## LLM routing (optional)
 

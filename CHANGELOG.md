@@ -4,6 +4,25 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-09-23
+
+### Added
+
+- Semantic router (`heuristic → semantic → llm` now fully live): zero-dependency
+  bigram (Sørensen–Dice) similarity with IDF weighting — recovers typos and
+  spelling drift ("archtecture", "vulnerbilities") that exact-token matching
+  misses. Fully deterministic, no network.
+- `nexus.discover` MCP tool + `mcp-nexus discover <query>`: dynamic capability
+  discovery returning the minimal tool surface for a request, ranked across the
+  provider chain without a confidence gate.
+- 5 semantic-router / discover tests (suite now 35).
+
+### Fixed
+
+- Invocation scopes: a manifest declaring `write: false` no longer denies every
+  call to a read-only tool — only scopes a tool explicitly *grants* are
+  evaluated; `false` ops stay a hard deny only if explicitly requested.
+
 ## [Unreleased]
 
 ### Added

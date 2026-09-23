@@ -16,7 +16,7 @@
 │  try provider      │
 │  in order:         │
 │  heuristic →       │  src/router/heuristic.ts (zero-dep, stemmed)
-│  semantic →        │  src/router/semantic.ts (stub: unavailable)
+│  semantic →        │  src/router/semantic.ts (zero-dep, bigram/IDF fuzzy)
 │  llm               │  src/router/llm.ts (Gemini REST; unavailable w/o key)
 └───────┬────────────┘
         ▼
