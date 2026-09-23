@@ -4,6 +4,14 @@
   "description": "Open-source intelligent routing & discovery layer for MCP tools. One endpoint, hundreds of tools — dynamic capability discovery, policy-aware execution, LLM-optional hybrid router.",
   "type": "module",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/dsk-dev-ai/mcp-nexus",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dsk-dev-ai/mcp-nexus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dsk-dev-ai/mcp-nexus/issues"
+  },
   "bin": {
     "mcp-nexus": "src/index.ts"
   },
