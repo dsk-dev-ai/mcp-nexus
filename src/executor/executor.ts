@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import type { ToolManifest } from "../registry/manifest.ts";
+import type { ExecutorPlugin } from "../sdk/interfaces.ts";
 
 export interface ExecArgs {
   [key: string]: unknown;
@@ -27,7 +28,7 @@ export interface ExecutorOptions {
  * - `docker` — `docker run` a tool image, args interpolated
  * - `http`   — POST `{ input: args }` to a Streamable-HTTP/JSON endpoint
  */
-export class ToolExecutor {
+export class ToolExecutor implements ExecutorPlugin {
   private readonly options: ExecutorOptions;
 
   constructor(options: ExecutorOptions = {}) {

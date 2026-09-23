@@ -2,6 +2,7 @@ import type { RouterProvider, RoutingResult, RouterAlternative } from "./types.t
 import type { ToolManifest } from "../registry/manifest.ts";
 import type { RegistryEntry } from "../registry/registry.ts";
 import { tokenize, stem, capabilityTokens } from "./heuristic.ts";
+import type { RouterPlugin } from "../sdk/interfaces.ts";
 
 export interface SemanticRouterOptions {
   /** Minimum bigram-similarity before a term counts as a match */
@@ -19,7 +20,7 @@ export interface SemanticRouterOptions {
  * deterministic, no dependencies, no network — a lightweight stand-in for
  * embeddings.
  */
-export class SemanticRouter implements RouterProvider {
+export class SemanticRouter implements RouterProvider, RouterPlugin {
   readonly name = "semantic";
   private readonly matchThreshold: number;
 

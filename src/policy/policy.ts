@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ToolManifest } from "../registry/manifest.ts";
 import type { ApprovalStore } from "./approvals.ts";
+import type { PolicyProviderPlugin } from "../sdk/interfaces.ts";
 
 export type PolicyAction = "allow" | "deny" | "approval";
 
@@ -31,7 +32,7 @@ const EMPTY: PolicyConfig = { default: "allow", rules: [] };
  * untrusted tools. Approval-based scopes surface as "approval" and must be
  * confirmed by the caller before execution.
  */
-export class PolicyEngine {
+export class PolicyEngine implements PolicyProviderPlugin {
   private readonly config: PolicyConfig;
 
   constructor(config: PolicyConfig = EMPTY) {

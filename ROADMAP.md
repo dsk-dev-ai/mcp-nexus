@@ -26,6 +26,9 @@ Working, documented, tested:
 - [x] CLI (`start`, `add`, `remove`, `list`, `inspect`, `search/route`, `discover`, `config`, `doctor`, `benchmark`, `invoke`, `approvals`, `resolve`, `dashboard`)
 - [x] Deterministic benchmark suite (6 tools / 13 tasks — 100% heuristic accuracy)
 - [x] Reference tools, tests, CI, Apache-2.0
+- [x] SDK + plugin interfaces (0.6.0): `createTool`/`defineCapabilities`/
+      `definePermissions`/`registerTool`/`upsertTool`/`buildRouter`, `*Plugin`
+      contracts, API reference ([docs/sdk.md](docs/sdk.md), [docs/api.md](docs/api.md))
 
 V1 definition of done:
 

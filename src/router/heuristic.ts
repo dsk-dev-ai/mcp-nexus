@@ -1,6 +1,7 @@
 import type { RouterProvider, RoutingResult, RouterAlternative } from "./types.ts";
 import type { ToolManifest } from "../registry/manifest.ts";
 import type { RegistryEntry } from "../registry/registry.ts";
+import type { RouterPlugin } from "../sdk/interfaces.ts";
 
 const STOPWORDS = new Set([
   "the", "a", "an", "and", "or", "of", "to", "for", "on", "in", "with",
@@ -33,7 +34,7 @@ export interface HeuristicRouterOptions {
  * overlap between the query and the tool's name, description and capabilities.
  * The best match keeps its raw score as confidence; alternatives are ranked.
  */
-export class HeuristicRouter implements RouterProvider {
+export class HeuristicRouter implements RouterProvider, RouterPlugin {
   readonly name = "heuristic";
   private readonly threshold: number;
 

@@ -1,6 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import type { TelemetryProviderPlugin } from "../sdk/interfaces.ts";
+
 export interface ActivityRecord {
   executionId: string;
   tool: string;
@@ -28,7 +30,7 @@ export function makeExecutionId(): string {
  * Lightweight JSONL activity log. One record per routed execution.
  * Kept in NEXUS_HOME/activity.jsonl — never in the repository.
  */
-export class ActivityLog {
+export class ActivityLog implements TelemetryProviderPlugin {
   private readonly file: string;
 
   constructor(file: string) {
