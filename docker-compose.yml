@@ -1,0 +1,27 @@
+# MCP Nexus — one-command local deployment (dashboard + registry + activity).
+#   docker compose up -d
+#   open http://localhost:8080
+# Persistent data lives in a named volume `nexus-data`; to inspect it on the
+# host, mount `./nexus-data:/app/nexus-data` instead (the host dir must be
+# writable by UID 1000).
+services:
+  nexus:
+    build: .
+    container_name: mcp-nexus
+    ports:
+      - "8080:3000"
+    environment:
+      MCP_NEXUS_HOME: /app/nexus-data
+      MCP_NEXUS_PORT: "3000"
+      MCP_NEXUS_HOST: "0.0.0.0"
+      MCP_NEXUS_LOG_LEVEL: ${MCP_NEXUS_LOG_LEVEL:-info}
+      MCP_NEXUS_ROUTER_MODE: ${MCP_NEXUS_ROUTER_MODE:-hybrid}
+      # Optional LLM routing — set in .env, never committed
+      MCP_NEXUS_OPENROUTER_API_KEY: ${MCP_NEXUS_OPENROUTER_API_KEY:-}
+      MCP_NEXUS_GEMINI_API_KEY: ${MCP_NEXUS_GEMINI_API_KEY:-}
+    volumes:
+      - nexus-data:/app/nexus-data
+    restart: unless-stopped
+
+volumes:
+  nexus-data:

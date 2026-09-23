@@ -134,7 +134,7 @@ export async function run(argv: string[]): Promise<number> {
       executor: ctx.executor,
       config: ctx.config,
     });
-    console.log(`MCP Nexus dashboard: http://127.0.0.1:${handle.port}/`);
+    console.log(`MCP Nexus dashboard: http://${ctx.config.bindHost ?? "127.0.0.1"}:${handle.port}/`);
     console.log("Press Ctrl-C to stop.");
     await new Promise<void>((resolve) => {
       const stop = (): void => {
@@ -155,17 +155,22 @@ function context(): CliContext {
   const config = loadConfig();
   if (!existsSync(config.home)) mkdirSync(config.home, { recursive: true });
   const registry = ToolRegistry.default(config.home);
-  const providers = [
+  const allProviders = [
     new HeuristicRouter(),
     new SemanticRouter(),
     new LlmRouter(config.geminiApiKey ?? config.openrouterApiKey),
   ];
+  const providersByMode = ["heuristic", "semantic", "llm"];
+  const chain = config.routerProviders.map((name) => {
+    const index = providersByMode.indexOf(name);
+    return index === -1 ? null : allProviders[index];
+  }).filter((p): p is (typeof allProviders)[number] => p !== null);
   return {
     config,
     registry,
-    router: new NexusRouter(providers),
+    router: new NexusRouter(chain.length ? chain : allProviders),
     policy: PolicyEngine.load(config.home),
-    executor: new ToolExecutor(),
+    executor: new ToolExecutor({ timeoutMs: config.executionTimeoutMs }),
     activity: ActivityLog.default(config.home),
     approvals: ApprovalStore.load(config.home),
   };

@@ -4,6 +4,7 @@ npm-debug.log*
 
 # Runtime data created by mcp-nexus
 .nexus/
+nexus-data/
 
 # Environment
 .env

@@ -1,0 +1,7 @@
+node_modules
+.nexus
+nexus-data
+.git
+.github
+*.log
+.env
