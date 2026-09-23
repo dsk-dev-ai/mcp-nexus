@@ -5,6 +5,10 @@ import type { RegistryEntry } from "../registry/registry.ts";
 const STOPWORDS = new Set([
   "the", "a", "an", "and", "or", "of", "to", "for", "on", "in", "with",
   "this", "that", "my", "me", "can", "you", "please", "show", "find", "me",
+  // interrogatives / filler that don't discriminate between tools
+  "what", "how", "why", "when", "does", "did", "do", "is", "are", "was", "were",
+  "could", "would", "should", "will", "may", "might", "need", "want", "make",
+  "get", "look", "like", "see", "up", "out", "any", "all", "some",
 ]);
 
 export function tokenize(text: string): string[] {
@@ -126,14 +130,19 @@ export class HeuristicRouter implements RouterProvider {
   }
 }
 
-/** Lightweight stemmer for common English inflections (plural/gerund/past). */
+/** Lightweight stemmer for common English inflections (plural/gerund/past/ity). */
 export function stem(word: string): string {
-  if (word.endsWith("ies") && word.length > 4) return word.slice(0, -3) + "y";
-  if (word.endsWith("ing") && word.length > 5) return word.slice(0, -3);
-  if (word.endsWith("ed") && word.length > 4) return word.slice(0, -2);
-  if (word.endsWith("es") && word.length > 4) return word.slice(0, -2);
-  if (word.endsWith("s") && word.length > 3) return word.slice(0, -1);
-  return word;
+  const w = word.toLowerCase();
+  if (w.endsWith("ies") && w.length > 4) return w.slice(0, -3) + "y";
+  if (w.endsWith("ity") && w.length > 5) return w.slice(0, -3);
+  if (w.endsWith("ing") && w.length > 5) return w.slice(0, -3);
+  if (w.endsWith("ed") && w.length > 4) return w.slice(0, -2);
+  if (w.endsWith("es") && w.length > 4) return w.slice(0, -2);
+  if (w.endsWith("s") && w.length > 3) return w.slice(0, -1);
+  // security ~ secure, structure ~ structural
+  if (w.endsWith("al") && w.length > 4) return w.slice(0, -2);
+  if (w.endsWith("e") && w.length > 4) return w.slice(0, -1);
+  return w;
 }
 
 /** Does one token loosely match another (equal after stemming, or shared prefix)? */
