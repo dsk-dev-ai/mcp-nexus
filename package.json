@@ -1,0 +1,43 @@
+{
+  "name": "mcp-nexus",
+  "version": "0.1.0",
+  "description": "Open-source intelligent routing & discovery layer for MCP tools. One endpoint, hundreds of tools — dynamic capability discovery, policy-aware execution, LLM-optional hybrid router.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "mcp-nexus": "src/index.ts"
+  },
+  "files": [
+    "src",
+    "docs",
+    "tools"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "start:stdio": "node src/index.ts start",
+    "dev": "node --watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/",
+    "test:coverage": "node --test --experimental-test-coverage tests/"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "ai-agents",
+    "llm",
+    "router",
+    "agent-tools",
+    "tool-discovery"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.0"
+  }
+}
