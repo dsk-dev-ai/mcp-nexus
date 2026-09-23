@@ -14,7 +14,9 @@ Working, documented, tested:
 - [x] Semantic router (zero-dependency bigram/IDF fuzzy — typo-tolerant)
 - [x] Dynamic capability discovery (`nexus.discover` + CLI `discover`)
 - [x] Provider fallback chain (heuristic → semantic → LLM), LLM optional
-- [x] Policy engine (allow / deny / approval + per-tool permission scopes)
+- [x] Policy engine (allow / deny / approval + per-tool permission scopes) with
+      live approval flow (`nexus.approvals`/`nexus.resolve_approval`, interactive
+      `invoke` prompt, `resolve <id> +|-` CLI)
 - [x] Executor — all transports: local/stdio subprocess, docker (docker run),
       http (POST `{ input: args }`), timeout, `{{arg}}` interpolation (0.3.0)
 - [x] Telemetry (JSONL activity log + summary)
