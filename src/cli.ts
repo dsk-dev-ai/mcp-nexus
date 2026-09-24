@@ -1,13 +1,14 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
 import { loadConfig, type NexusConfig } from "./config.ts";
 import { ToolRegistry, ToolNotFoundError } from "./registry/registry.ts";
 import { ManifestValidationError, parseManifest } from "./registry/manifest.ts";
 import { upsertTool } from "./sdk/index.ts";
 import { HeuristicRouter } from "./router/heuristic.ts";
 import { SemanticRouter } from "./router/semantic.ts";
-import { LlmRouter } from "./router/llm.ts";
+import { buildLlmRouter } from "./router/llm.ts";
 import { NexusRouter } from "./router/index.ts";
 import { PolicyEngine } from "./policy/policy.ts";
 import { ApprovalStore } from "./policy/approvals.ts";
@@ -15,6 +16,7 @@ import { deriveScopes } from "./policy/scopes.ts";
 import { ToolExecutor } from "./executor/executor.ts";
 import { ActivityLog } from "./telemetry/logger.ts";
 import { NexusMCPServer } from "./server/server.ts";
+import { startHttpGateway } from "./server/httpGateway.ts";
 import { startDashboard } from "./dashboard/server.ts";
 import { createInterface } from "node:readline";
 import {
@@ -41,23 +43,30 @@ const HELP = `mcp-nexus — intelligent routing layer for MCP tools
 Usage: mcp-nexus <command> [options]
 
 Commands:
-  start              Start the MCP server over stdio (connect Claude/Cursor/etc.)
-  add <file|json>    Register or update a tool from a manifest file or JSON string
-  remove <name>      Unregister a tool
-  list               List registered tools
-  inspect <name>     Show full manifest for a tool
-  search <query>     Route a request (dry run): show the best tool + why
-  route <query>      Alias for search
-  discover <query>   Show the minimal capability surface for a request
-  invoke <query>     Route + policy-check + execute a request (approval prompts interactively)
-  dashboard          Start the web dashboard (REST API + UI)
-  approvals          List pending operator approvals
-  resolve <id> +|-   Approve (+) or deny (-) a pending approval
-  policy             Show current policy configuration
-  config [a=b ...]   Read or set config values (e.g. port=8080)
-  doctor             Diagnose this environment
-  benchmark          Run the built-in routing benchmark
-  help               Show this help
+  start               Start the MCP server over stdio (connect Claude/Cursor/etc.)
+  start:http          Start the MCP server over Streamable HTTP (remote clients use http://host:port/mcp)
+  add <file|json>     Register or update a tool from a manifest file or JSON string
+  remove <name>       Unregister a tool
+  list                List registered tools
+  tools               Alias for list
+  enable <name>       Enable a registered tool
+  disable <name>      Disable a registered tool
+  inspect <name>      Show full manifest for a tool
+  search <query>      Route a request (dry run): show the best tool + why
+  route <query>       Alias for search
+  discover <query>    Show the minimal capability surface for a request
+  invoke <query>      Route + policy-check + execute a request (approval prompts interactively)
+  dashboard           Start the web dashboard (REST API + UI)
+  approvals           List pending operator approvals
+  resolve <id> +|-    Approve (+) or deny (-) a pending approval
+  policy              Show current policy configuration
+  config [a=b ...]    Read or set config values (e.g. port=8080)
+  doctor              Diagnose this environment
+  benchmark           Run the built-in routing benchmark
+  help                Show this help
+
+\`stop\` is not a separate daemon: stdio (\`start\`) and dashboard processes run in
+the foreground and are stopped with Ctrl-C (SIGINT).
 `;
 
 export async function run(argv: string[]): Promise<number> {
@@ -78,14 +87,18 @@ export async function run(argv: string[]): Promise<number> {
 
   switch (command) {
     case "start":
+    case "start:http":
     case "doctor":
     case "list":
+    case "tools":
     case "policy":
     case "dashboard":
       break;
     case "add":
     case "remove":
     case "inspect":
+    case "enable":
+    case "disable":
     case "search":
     case "route":
     case "discover":
@@ -120,11 +133,38 @@ export async function run(argv: string[]): Promise<number> {
     return 0;
   }
 
+  if (command === "start:http") {
+    const handle = await startHttpGateway(
+      {
+        registry: ctx.registry,
+        router: ctx.router,
+        policy: ctx.policy,
+        executor: ctx.executor,
+        activity: ctx.activity,
+        approvals: ctx.approvals,
+        home: ctx.config.home,
+      },
+      { host: ctx.config.bindHost, port: ctx.config.port },
+    );
+    console.log(`MCP Nexus gateway (Streamable HTTP): ${handle.url}`);
+    console.log("Press Ctrl-C to stop.");
+    await new Promise<void>((resolve) => {
+      const stop = (): void => {
+        void handle.close().then(resolve);
+        process.off("SIGINT", stop);
+        process.off("SIGTERM", stop);
+      };
+      process.on("SIGINT", stop);
+      process.on("SIGTERM", stop);
+    });
+    return 0;
+  }
+
   if (command === "doctor") {
     return await doctor(ctx);
   }
 
-  if (command === "list") {
+  if (command === "list" || command === "tools") {
     return await listCommand(ctx);
   }
 
@@ -166,9 +206,9 @@ function context(): CliContext {
   const allProviders = [
     new HeuristicRouter(),
     new SemanticRouter(),
-    new LlmRouter(config.geminiApiKey ?? config.openrouterApiKey),
+    buildLlmRouter(config),
   ];
-  const providersByMode = ["heuristic", "semantic", "llm"];
+  const providersByMode = ["heuristic", "semantic", "llm", "llm-openrouter"];
   const chain = config.routerProviders.map((name) => {
     const index = providersByMode.indexOf(name);
     return index === -1 ? null : allProviders[index];
@@ -196,6 +236,10 @@ async function dispatch(
       return await removeCommand(ctx, args[0]);
     case "inspect":
       return await inspectCommand(ctx, args[0]);
+    case "enable":
+      return await setEnabledCommand(ctx, args[0], true);
+    case "disable":
+      return await setEnabledCommand(ctx, args[0], false);
 case "search":
   case "route":
     return await searchCommand(ctx, args.join(" "));
@@ -274,6 +318,21 @@ function inspectCommand(ctx: CliContext, name: string | undefined): number {
   }
   console.log(JSON.stringify(tool, null, 2));
   return 0;
+}
+
+function setEnabledCommand(ctx: CliContext, name: string | undefined, enabled: boolean): number {
+  if (!name) {
+    console.error(`usage: mcp-nexus ${enabled ? "enable" : "disable"} <name>`);
+    return 1;
+  }
+  try {
+    const entry = ctx.registry.setEnabled(name, enabled);
+    console.log(`${entry.name}: ${entry.enabled ? "enabled" : "disabled"}`);
+    return 0;
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
 }
 
 async function searchCommand(ctx: CliContext, query: string): Promise<number> {
@@ -458,6 +517,53 @@ async function doctor(ctx: CliContext): Promise<number> {
   const tools = ctx.registry.list();
   ok.push(`Registry: ${tools.length} tool${tools.length === 1 ? "" : "s"} (${ctx.registry.enabled().length} enabled)`);
 
+  // Per-tool activation diagnostics (V1 spec §22): each transport's own
+  // prerequisite must be present so a "route succeeds, execution fails" class
+  // of problem shows up here instead of at runtime.
+  const checkedRemote = new Set<string>();
+  if (tools.length > 0) {
+    for (const tool of tools) {
+      if (!tool.enabled) continue;
+      switch (tool.transport.type) {
+        case "local":
+        case "stdio": {
+          const bin = tool.transport.command?.[0];
+          if (!bin) {
+            err.push(`Tool ${tool.name}: no command declared`);
+            break;
+          }
+          const onPath = commandOnPath(bin);
+          if (onPath) ok.push(`Tool ${tool.name}: '${bin}' on PATH`);
+          else warn.push(`Tool ${tool.name}: '${bin}' not on PATH — execution will fail`);
+          break;
+        }
+        case "docker": {
+          const image = tool.transport.image;
+          if (image) ok.push(`Tool ${tool.name}: docker image '${image}' (checked at execution)`);
+          else err.push(`Tool ${tool.name}: docker transport without an image`);
+          break;
+        }
+        case "http": {
+          const url = tool.transport.url;
+          if (url) {
+            ok.push(`Tool ${tool.name}: http endpoint declared (${url})`);
+            checkedRemote.add(url);
+          } else err.push(`Tool ${tool.name}: http transport without a url`);
+          break;
+        }
+      }
+    }
+  }
+
+  // Docker daemon availability (V1 spec §22 doctor example).
+  if (commandOnPath("docker")) {
+    ok.push("Docker: CLI present");
+    if (dockerDaemonReachable()) ok.push("Docker: daemon reachable");
+    else warn.push("Docker: daemon not reachable — docker transports will fail until it is started");
+  } else {
+    warn.push("Docker: not on PATH — docker tool transports unavailable");
+  }
+
   const providers = ctx.router["providers"] ?? [];
   for (const p of providers) {
     if (p.name === "heuristic") ok.push("Router heuristic: available (zero-dependency)");
@@ -547,4 +653,15 @@ function message(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+function commandOnPath(bin: string): boolean {
+  const where = process.platform === "win32" ? "where" : "which";
+  const res = spawnSync(where, [bin], { stdio: "ignore", timeout: 5_000 });
+  return res.status === 0;
+}
+
+function dockerDaemonReachable(): boolean {
+  const res = spawnSync("docker", ["info"], { stdio: "ignore", timeout: 5_000 });
+  return res.status === 0;
 }

@@ -6,6 +6,7 @@ import type { ApprovalStore } from "../policy/approvals.ts";
 import type { ActivityLog } from "../telemetry/logger.ts";
 import type { ToolExecutor } from "../executor/executor.ts";
 import type { NexusConfig } from "../config.ts";
+import { NEXUS_VERSION } from "../version.ts";
 
 export interface DashboardDeps {
   registry: ToolRegistry;
@@ -66,11 +67,21 @@ export async function startDashboard(deps: DashboardDeps): Promise<DashboardServ
         return;
       }
 
+      // ---- Auth (§20/§32): optional bearer token covers every /api/* route ----
+      if (path.startsWith("/api/") && isProtected(deps)) {
+        const header = req.headers.authorization ?? "";
+        const expected = `Bearer ${deps.config.apiToken}`;
+        if (header.trim() !== expected) {
+          json(res, 401, { error: "unauthorized — set MCP_NEXUS_API_TOKEN and send an Authorization: Bearer <token> header" });
+          return;
+        }
+      }
+
       // ---- API ----
       if (method === "GET" && path === "/api/health") {
         json(res, 200, {
           status: "ok",
-          version: "0.8.0",
+          version: NEXUS_VERSION,
           uptime: Math.round(process.uptime()),
           tools: deps.registry.list().length,
         });
@@ -172,6 +183,22 @@ export async function startDashboard(deps: DashboardDeps): Promise<DashboardServ
         return;
       }
 
+      if (method === "PUT" && path === "/api/policies") {
+        const body = await readBody(req);
+        try {
+          const next = {
+            default: String(body.default ?? "allow") as "allow" | "deny" | "approval",
+            rules: Array.isArray(body.rules) ? body.rules as Array<{ tool: string; approvals: string[]; blocklists: string[] }> : [],
+          };
+          deps.policy.replace(next);
+          deps.policy.save(deps.config.home);
+          json(res, 200, deps.policy.snapshot);
+        } catch (error) {
+          json(res, 400, { error: error instanceof Error ? error.message : String(error) });
+        }
+        return;
+      }
+
       if (method === "GET" && path === "/api/approvals") {
         json(res, 200, deps.approvals.list());
         return;
@@ -241,9 +268,15 @@ function maskedConfig(config: NexusConfig): Record<string, unknown> {
   delete (masked as Record<string, unknown>).home;
   delete (masked as Record<string, unknown>).openrouterApiKey;
   delete (masked as Record<string, unknown>).geminiApiKey;
+  delete (masked as Record<string, unknown>).apiToken;
   (masked as Record<string, unknown>).openrouterApiKey = config.openrouterApiKey ? "****" : undefined;
   (masked as Record<string, unknown>).geminiApiKey = config.geminiApiKey ? "****" : undefined;
+  (masked as Record<string, unknown>).apiToken = config.apiToken ? "****" : undefined;
   return masked;
+}
+
+function isProtected(deps: DashboardDeps): boolean {
+  return Boolean(deps.config.apiToken);
 }
 
 async function runBenchmark(deps: DashboardDeps): Promise<unknown> {
@@ -344,7 +377,7 @@ pre{background:#0f1419;border:1px solid var(--border);border-radius:8px;padding:
 </head>
 <body>
 <header>
-  <h1>MCP Nexus <span class="tag">0.8.0</span></h1>
+  <h1>MCP Nexus <span class="tag">${NEXUS_VERSION}</span></h1>
   <nav>
     <button data-sec="overview" class="active">Overview</button>
     <button data-sec="tools">Tools</button>
@@ -362,7 +395,7 @@ pre{background:#0f1419;border:1px solid var(--border);border-radius:8px;padding:
   <section id="router"><div class="flex" style="margin-bottom:10px"><input id="route-query" placeholder="try: analyze my repository architecture" type="text"><button class="primary" id="route-btn">Route</button></div><pre id="route-out"></pre></section>
   <section id="activity"><table id="activitytbl"></table></section>
   <section id="approvals"><table id="approvalstbl"></table><p class="muted" id="approvals-empty"></p></section>
-  <section id="policies"><pre id="police-out"></pre></section>
+  <section id="policies"><p class="muted">Default allow/deny/approval plus per-tool rules. Edit JSON and save (writes .nexus/policy.json).</p><div class="flex" style="margin-bottom:10px"><button class="primary" id="policy-save">Save policy</button><span class="muted" id="policy-status"></span></div><textarea id="police-out" spellcheck="false" style="width:100%;min-height:260px;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:10px;font:12px/1.5 monospace"></textarea></section>
   <section id="benchmark"><p class="muted">Runs the deterministic 13-task suite against the live registry. Click to refresh.</p><button id="bench-run" class="primary">Run benchmark</button><pre id="bench-out"></pre></section>
   <section id="settings"><pre id="config-out"></pre></section>
 </main>
@@ -451,7 +484,15 @@ document.getElementById("approvalstbl").addEventListener("click",async e=>{
   await j("/api/approvals/"+encodeURIComponent(b.dataset.ap),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({approved:b.dataset.v==="1"})});
   loadApprovals();loadSummary();
 });
-async function loadPolicies(){$("#police-out").textContent=JSON.stringify(await j("/api/policies"),null,2);}
+async function loadPolicies(){$("#police-out").value=JSON.stringify(await j("/api/policies"),null,2);$("#policy-status").textContent="";}
+document.getElementById("policy-save").onclick=async()=>{
+  const status=$("#policy-status");
+  try{
+    const parsed=JSON.parse($("#police-out").value);
+    const saved=await j("/api/policies",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(parsed)});
+    status.textContent="saved: default="+saved.default+" rules="+saved.rules.length;
+  }catch(e){status.textContent="save failed: "+e.message;}
+};
 async function loadConfig(){$("#config-out").textContent=JSON.stringify(await j("/api/config"),null,2);}
 document.getElementById("bench-run").onclick=async()=>{
   const out=$("#bench-out");out.textContent="running...";

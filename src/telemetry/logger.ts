@@ -46,15 +46,17 @@ export class ActivityLog implements TelemetryProviderPlugin {
     return new ActivityLog(join(homeDir, "activity.jsonl"));
   }
 
-  log(record: Omit<ActivityRecord, "timestamp" | "executionId">): void {
+  log(record: Omit<ActivityRecord, "timestamp" | "executionId">): string {
+    const executionId = makeExecutionId();
     appendFileSync(
       this.file,
       JSON.stringify({
         ...record,
-        executionId: makeExecutionId(),
+        executionId,
         timestamp: new Date().toISOString(),
       }) + "\n",
     );
+    return executionId;
   }
 
   summary(): ActivitySummary {

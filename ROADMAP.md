@@ -8,27 +8,41 @@ partially — a feature is only listed here once it's real.
 
 Working, documented, tested:
 
-- [x] MCP server over stdio (`nexus.register_tool`, `nexus.list_tools`, `nexus.route`, `nexus.discover`, `nexus.invoke`)
-- [x] Tool registry (file-backed, manifest validation — JSON + simple YAML)
+- [x] MCP server over stdio **and Streamable HTTP** (`nexus.register_tool`,
+      `nexus.remove_tool`, `nexus.inspect_tool`, `nexus.list_tools`,
+      `nexus.route`, `nexus.discover`, `nexus.invoke`, `nexus.approvals`,
+      `nexus.resolve_approval`; `start` / `start:http` / `stop`)
+- [x] Tool registry (file-backed, manifest validation — JSON + simple YAML;
+      optional `outputSchema` for typed outputs)
 - [x] Heuristic router (zero-dependency, stemmed capability scoring)
 - [x] Semantic router (zero-dependency bigram/IDF fuzzy — typo-tolerant)
+- [x] Intent overlay (§25): deterministic vocabulary short-circuits at the
+      route head (git history / dependency risk / secret scanning / repo
+      organization) — resolves the entire §31 exact+semantic reference
 - [x] Dynamic capability discovery (`nexus.discover` + CLI `discover`)
-- [x] Provider fallback chain (heuristic → semantic → LLM), LLM optional
+- [x] Provider fallback chain (heuristic → semantic → LLM), LLM optional;
+      Gemini + OpenRouter providers behind one factory (`buildLlmRouter`)
 - [x] Policy engine (allow / deny / approval + per-tool permission scopes) with
       live approval flow (`nexus.approvals`/`nexus.resolve_approval`, interactive
-      `invoke` prompt, `resolve <id> +|-` CLI)
+      `invoke` prompt, `resolve <id> +|-` CLI) and editable policy API
+      (`PUT /api/policies`)
 - [x] Executor — all transports: local/stdio subprocess, docker (docker run),
       http (POST `{ input: args }`), timeout, `{{arg}}` interpolation (0.3.0)
-- [x] Telemetry (JSONL activity log + summary)
+- [x] Telemetry (JSONL activity log + summary; `executionId` surfaced end to end)
 - [x] Web dashboard (0.5.0): single-page UI + REST API — overview, tools
-      (enable/disable), router playground, activity, approvals, policies,
-      benchmark, settings ([docs/dashboard.md](docs/dashboard.md))
-- [x] CLI (`start`, `add`, `remove`, `list`, `inspect`, `search/route`, `discover`, `config`, `doctor`, `benchmark`, `invoke`, `approvals`, `resolve`, `dashboard`)
-- [x] Deterministic benchmark suite (6 tools / 13 tasks — 100% heuristic accuracy)
+      (enable/disable), router playground, activity, approvals, policies
+      (editable), benchmark, settings; optional bearer-token auth
+      ([docs/dashboard.md](docs/dashboard.md))
+- [x] CLI (`start`, `start:http`, `stop`, `add`, `remove`, `list`/`tools`,
+      `inspect`, `search/route`, `discover`, `enable`/`disable`, `config`,
+      `doctor`, `benchmark`, `invoke`, `approvals`, `resolve`, `dashboard`)
+- [x] Deterministic benchmark suite (6 tools / 32 tasks — §31 reference;
+      heuristic 100% / chain 93.8%; benchmark CI gate exits clean)
 - [x] Reference tools, tests, CI, Apache-2.0
 - [x] SDK + plugin interfaces (0.6.0): `createTool`/`defineCapabilities`/
-      `definePermissions`/`registerTool`/`upsertTool`/`buildRouter`, `*Plugin`
-      contracts, API reference ([docs/sdk.md](docs/sdk.md), [docs/api.md](docs/api.md))
+      `definePermissions`/`registerTool`/`upsertTool`/`buildRouter`/
+      `buildLlmRouter`, `*Plugin` contracts, API reference
+      ([docs/sdk.md](docs/sdk.md), [docs/api.md](docs/api.md))
 - [x] Docker (0.7.0): non-root `Dockerfile` + `docker-compose.yml`
       (dashboard + registry volume), verified `docker compose up`; CI image
       build; config expansion (`.env.example`, `MCP_NEXUS_*`, router mode,

@@ -7,7 +7,7 @@ import { ToolRegistry } from "../src/registry/registry.ts";
 import { HeuristicRouter } from "../src/router/heuristic.ts";
 import { SemanticRouter } from "../src/router/semantic.ts";
 import { NexusRouter } from "../src/router/index.ts";
-import { LlmRouter } from "../src/router/llm.ts";
+import { LlmRouter, buildLlmRouter } from "../src/router/llm.ts";
 import { ManifestValidationError } from "../src/registry/manifest.ts";
 import {
   createTool,
@@ -110,8 +110,19 @@ test("built-in routers satisfy the RouterPlugin contract", () => {
 });
 
 test("LlmRouter reports configured status", () => {
-  assert.equal(new LlmRouter().configured, false);
-  assert.equal(new LlmRouter("sk-test").configured, true);
+  assert.equal(new LlmRouter("gemini").configured, false);
+  assert.equal(new LlmRouter("gemini", "sk-test").configured, true);
+  assert.equal(new LlmRouter("openrouter", "sk-test").configured, true);
+  assert.equal(new LlmRouter("openrouter").name, "llm-openrouter");
+  assert.equal(new LlmRouter("gemini", "sk-test").name, "llm");
+});
+
+test("buildLlmRouter selects OpenRouter when a key is set, else Gemini", () => {
+  const fromConfig = buildLlmRouter;
+  assert.equal(fromConfig({}).name, "llm");
+  assert.equal(fromConfig({ openrouterApiKey: "or-key" }).name, "llm-openrouter");
+  assert.equal(fromConfig({ openrouterApiKey: "or-key", geminiApiKey: "gm-key" }).name, "llm-openrouter");
+  assert.equal(fromConfig({ geminiApiKey: "gm-key" }).name, "llm");
 });
 
 test("SDK surface exposes the documented entry points", async () => {

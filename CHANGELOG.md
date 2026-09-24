@@ -4,6 +4,52 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-09-24
+
+### Added
+
+- **Streamable-HTTP MCP gateway** (V1 spec §10/§2): `mcp-nexus start:http`
+  (`src/server/httpGateway.ts`) serves the full `nexus.*` surface over `/mcp`
+  with per-`MCP-Session-Id` sessions; `mcp-nexus stop` tears it down. The
+  `buildNexusMcpServer` factory drives both stdio and HTTP so the two
+  transports can never drift.
+- **`nexus.remove_tool` and `nexus.inspect_tool`** — previously documented
+  but missing; both implemented and exercised over stdio and HTTP (§2).
+- **`executionId` surfacing**: `nexus.invoke` and the activity log now report
+  the same `exec_…` id, so a gateway run correlates 1:1 with the dashboard
+  activity feed (§2/§13).
+- **LLM provider factory** (§30): `buildLlmRouter(config)` and `LlmRouter`
+  now back Gemini (REST) *and* OpenRouter (OpenAI-compatible
+  `chat/completions`); OpenRouter wins when both keys are present. `doctor`
+  reports per-provider config.
+- **Intent overlay complete** (§25/§31): `src/router/intents.ts` (git
+  history, dependency/lockfile risk, secret scanning, repo organization)
+  fires at the route head in BOTH the heuristic and semantic layers. The full
+  reference suite routes 100% on exact + semantic, so `mcp-nexus benchmark`
+  now exits 0 in CI — resolving the failing 0.8.0 benchmark job. Re-measured
+  copy-of-record: heuristic 100% / semantic 87.5% / chain 93.8% (large 100%).
+- **Policy editing API** (§19): `PUT /api/policies` replaces + persists the
+  policy (`PolicyEngine.replace`); dashboard Policies panel is now an
+  editable JSON editor with a Save button.
+- **Dashboard auth** (§20/§32): `MCP_NEXUS_API_TOKEN` (or config `apiToken`)
+  gates every `/api/*` route with `Authorization: Bearer`; token is masked in
+  `/api/config`.
+- **`outputSchema`** (§3): optional manifest field captures typed tool
+  output, preserved through parse/registry/exports.
+- **Version center**: `src/version.ts` — one constant feeds the gateway
+  version, `/api/health`, dashboard header, and docs; single bump per release.
+- **Strict latency gate**: `npm run bench:latency` asserts the reference
+  sub-2 ms per-task numbers in a serial run; the parallel `npm test` glob uses
+  a coarse regression budget so CI stays deterministic (§31).
+
+### Changed
+
+- `config()` in `src/config.ts` gained `apiToken` (env `MCP_NEXUS_API_TOKEN`).
+- CLI reference table (docs/api.md) and dashboard section updated for the new
+  endpoints (`start:http`, `stop`, `tools`, `enable`, `disable`, policy PUT).
+- `docs/benchmarks.md` re-pinned to the post-overlay copy-of-record (100% /
+  87.5% / 93.8%) with the hard-failure gate documented.
+
 ## [0.8.0] - 2026-09-24
 
 ### Added
@@ -157,40 +203,5 @@ Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
   call to a read-only tool — only scopes a tool explicitly *grants* are
   evaluated; `false` ops stay a hard deny only if explicitly requested.
 
-## [Unreleased]
-
-### Added
-
-- MCP server over stdio exposing `nexus.register_tool`, `nexus.list_tools`,
-  `nexus.route`, `nexus.invoke`.
-- Tool registry with JSON/YAML manifest validation and file persistence.
-- Heuristic router with embeddable light stemmer (irregular plurals, suffixes).
-- Provider fallback chain: `heuristic → semantic → llm`; LLM (Gemini free tier)
-  is optional and reports "unavailable" without an API key.
-- Policy engine: allow / deny / approval + per-tool permission scopes.
-- Executor supporting `local`/`stdio` subprocess with timeout and
-  `{{arg}}` interpolation. `http`/`docker` explicitly not yet implemented.
-- JSONL activity telemetry with summary.
-- CLI: `start`, `add`, `remove`, `list`, `inspect`, `search`/`route`,
-  `config`, `doctor`, `benchmark`.
-- Deterministic benchmark suite (6 tools / 13 tasks; 100% heuristic accuracy).
-- Five reference tool manifests under `tools/`.
-- Test suite (30 tests, `npm test`).
-- CI workflow (typecheck + tests on Node 22/24).
-- Governance docs: CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, ROADMAP.
-- Apache-2.0 license.
-
-### Changed
-
-- Stemmer `es` rule restricted to sibilants so `files → file` (not `fil`).
-- YAML-lite parser gains top-level `- ` list support.
-
-### Fixed
-
-- Routing now distinguishes `dependency-audit` from `repoarch` for
-  "vulnerable dependencies" / plural capability matching.
-
-### Security
-
-- Default policy is `allow`; operators are directed to configure rules for
-  untrusted tools (see SECURITY.md).
+[0.9.0]: https://github.com/dsk-dev-ai/mcp-nexus/releases/tag/v0.9.0
+[0.8.0]: https://github.com/dsk-dev-ai/mcp-nexus/releases/tag/v0.8.0

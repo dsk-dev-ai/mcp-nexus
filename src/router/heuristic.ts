@@ -1,6 +1,7 @@
 import type { RouterProvider, RoutingResult, RouterAlternative } from "./types.ts";
 import type { ToolManifest } from "../registry/manifest.ts";
 import type { RegistryEntry } from "../registry/registry.ts";
+import { matchIntent } from "./intents.ts";
 import type { RouterPlugin } from "../sdk/interfaces.ts";
 
 const STOPWORDS = new Set([
@@ -44,9 +45,33 @@ export class HeuristicRouter implements RouterProvider, RouterPlugin {
 
   async route(query: string, tools: RegistryEntry[]): Promise<RoutingResult> {
     const qTokens = tokenize(query);
-    if (qTokens.length === 0) {
+    if (qTokens.length === 0 || tools.length === 0) {
       return { reliability: "unavailable" };
     }
+
+    // §25 deterministic intent overlay — ordered, most-specific-first. A query
+    // naming a concrete domain ("what changed … lately", "outdated … lockfile")
+    // MUST pick git-inspector/dependency-audit even though that vocabulary is
+    // absent from those tools' registered capability surface — otherwise the
+    // generic repoarch/ctx fallbacks win (§31 reference tasks).
+    const intent = matchIntent(query);
+    if (intent) {
+      const target = tools.find((t) => t.name === intent.tool);
+      if (target) {
+        return {
+          reliability: "available",
+          decision: {
+            provider: "heuristic",
+            tool: target,
+            confidence: 1,
+            matchedCapabilities: [intent.rule.intent],
+            alternatives: [],
+            explanation: `Specific intent matched immediately: "${intent.rule.intent}" → ${intent.tool} (deterministic overlay, rule weight ${intent.rule.weight}).`,
+          },
+        };
+      }
+    }
+
 
     if (tools.length === 0) {
       return { reliability: "unavailable" };

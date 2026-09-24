@@ -14,6 +14,13 @@ mcp-nexus dashboard
 
 The port comes from `config.port` (`MCP_NEXUS_PORT` env, default 3000).
 
+### Optional auth (§20/§32)
+
+When `MCP_NEXUS_API_TOKEN` (or config `apiToken`) is set, every `/api/*`
+route requires `Authorization: Bearer <token>` and returns `401 {error:
+"unauthorized …"}` otherwise. The token itself is masked (`"****"`) in
+`/api/config`.
+
 ## REST API
 
 | Method | Path | Description |
@@ -28,6 +35,7 @@ The port comes from `config.port` (`MCP_NEXUS_PORT` env, default 3000).
 | POST | `/api/route` | Same, with JSON body `{query}` |
 | GET | `/api/activity` | `{summary, recent}` — last 25 executions with execution ids |
 | GET | `/api/policies` | Active policy snapshot `{default, rules}` |
+| PUT | `/api/policies` | Replace the policy config (`{default, rules}`); validated and persisted |
 | GET | `/api/approvals` | Pending operator approvals |
 | POST | `/api/approvals/:id` | `{approved: bool}` — approve/deny a pending approval |
 | GET | `/api/config` | Runtime config (API keys masked) |
@@ -47,14 +55,17 @@ HTTP status.
   latency.
 - **Approvals** — pending approval queue with approve/deny buttons
   (mirrors `mcp-nexus approvals`/`resolve`).
-- **Policies** — active policy config.
-- **Benchmark** — runs the deterministic 13-task suite against the live
+- **Policies** — editable policy config (JSON editor + Save; writes
+  `.nexus/policy.json`).
+- **Benchmark** — runs the deterministic §31 suite against the live
   registry and reports accuracy.
 - **Settings** — runtime config with secrets masked.
 
 ## Security notes
 
 - Binds to loopback only; the daemon never exposes it externally.
-- No write path beyond tool enable/disable and approval resolution, both of
-  which are equivalent to existing CLI commands.
-- API keys are never returned (`/api/config` masks them as `****`).
+- Optional bearer-token auth gates every `/api/*` route (see above).
+- Write paths are tool enable/disable, approval resolution, and the explicit
+  policy PUT — each equivalent to existing CLI commands.
+- API keys and the auth token are never returned (`/api/config` masks them as
+  `****`).

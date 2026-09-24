@@ -1,6 +1,6 @@
 {
   "name": "mcp-nexus",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Open-source intelligent routing & discovery layer for MCP tools. One endpoint, hundreds of tools — dynamic capability discovery, policy-aware execution, LLM-optional hybrid router.",
   "type": "module",
   "license": "Apache-2.0",
@@ -29,6 +29,7 @@
     "dev": "node --watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.ts",
+    "bench:latency": "NEXUS_BENCH_LATENCY_STRICT=1 node --test tests/bench.test.ts",
     "test:coverage": "node --test --experimental-test-coverage tests/"
   },
   "keywords": [
