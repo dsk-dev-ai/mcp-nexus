@@ -6,6 +6,8 @@ Connect once. Discover dynamically. Route intelligently. Execute safely.
 
 > One umbrella MCP endpoint in front of hundreds of tools — the agent only ever sees the right capability at the right time.
 
+> :globe_with_meridians: **Project site** — <https://dsk-dev-ai.github.io/mcp-nexus/> (architecture, benchmarks, docs hub).
+
 ---
 
 ## Why

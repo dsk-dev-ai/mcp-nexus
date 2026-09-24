@@ -4,6 +4,27 @@ All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-09-24
+
+The 1.0: MCP Nexus is stable, measurable, and documented. CI is driven by the
+§31 reference suite — `mcp-nexus benchmark` exits 0 only when every exact and
+semantic routing task passes.
+
+### Added
+
+- **Project website** (`site/`) deployed to GitHub Pages — landing page with
+  architecture, benchmark table, quick start, and the full documentation hub.
+- **GitHub Sponsors** — `.github/FUNDING.yml`, `package.json` `funding` field,
+  and README/site sponsor sections.
+
+### Changed
+
+- **1.0 stabilization**: version center → `1.0.0` (`src/version.ts`).
+
+### Fixed
+
+- ReadMe roadmap table duplicated V3 row.
+
 ## [0.9.0] - 2026-09-24
 
 ### Added
@@ -203,5 +224,6 @@ Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
   call to a read-only tool — only scopes a tool explicitly *grants* are
   evaluated; `false` ops stay a hard deny only if explicitly requested.
 
+[1.0.0]: https://github.com/dsk-dev-ai/mcp-nexus/releases/tag/v1.0.0
 [0.9.0]: https://github.com/dsk-dev-ai/mcp-nexus/releases/tag/v0.9.0
 [0.8.0]: https://github.com/dsk-dev-ai/mcp-nexus/releases/tag/v0.8.0

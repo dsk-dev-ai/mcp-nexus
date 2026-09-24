@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCP Nexus — the intelligent routing &amp; discovery layer for MCP tools</title>
+  <meta name="description" content="MCP Nexus routes hundreds of MCP tools through one endpoint: dynamic capability discovery, explainable routing, policy-aware execution. Works with no LLM, no GPU, no API key.">
+  <meta property="og:title" content="MCP Nexus">
+  <meta property="og:description" content="One umbrella MCP endpoint in front of hundreds of tools — dynamic discovery, explainable routing, policy-aware execution.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top">
+      <span class="mark">◈</span><span>MCP Nexus</span>
+    </a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#benchmarks">Benchmarks</a>
+      <a href="#quickstart">Quick start</a>
+      <a href="#docs">Docs</a>
+      <a class="sponsor" href="https://github.com/sponsors/dsk-dev-ai">Sponsor</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-kicker">v1.0.0 · MIT-friendly Apache-2.0 · zero-dependency core</div>
+      <h1>The intelligent routing &amp; discovery layer for <span class="accent">MCP tools</span>.</h1>
+      <p class="lede">Connect once. Discover dynamically. Route intelligently. Execute safely.<br>
+        One umbrella MCP endpoint in front of hundreds of tools — the agent only ever sees the right capability at the right time.</p>
+      <div class="cta">
+        <a href="#quickstart" class="btn primary">Get started</a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus" class="btn ghost">View on GitHub</a>
+      </div>
+      <div class="hero-stats">
+        <div><strong>100%</strong><span>heuristic reference accuracy</span></div>
+        <div><strong>0</strong><span>hard-failure residuals (§31)</span></div>
+        <div><strong>no LLM needed</strong><span>GPU- &amp; key-free by default</span></div>
+      </div>
+    </section>
+
+    <section id="features" class="cards">
+      <h2>What you get</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>One endpoint, hundreds of tools</h3>
+          <p>Agents connect once over <b>stdio</b> <em>or</em> <b>Streamable HTTP</b>. The gateway serves the full <code>nexus.*</code> surface — register, remove, inspect, list, route, discover, invoke, approvals.</p>
+        </article>
+        <article class="card">
+          <h3>Dynamic capability discovery</h3>
+          <p>Instead of dumping 500 tool schemas into the agent's context, <code>nexus.discover</code> returns the minimal tool surface that fits the current request.</p>
+        </article>
+        <article class="card">
+          <h3>Explainable routing</h3>
+          <p>Every decision carries a provider, confidence, matched capabilities, and alternatives — so you can see <em>why</em> a tool was chosen.</p>
+        </article>
+        <article class="card">
+          <h3>Policy-aware execution</h3>
+          <p>Allow / deny / approval gates with per-tool permission scopes. Approval-gated tools queue for an operator and resolve through the gateway or the dashboard.</p>
+        </article>
+        <article class="card">
+          <h3>Works with no LLM</h3>
+          <p>Heuristic → semantic → LLM fallback chain. The zero-dependency stack routes perfectly offline; Gemini and OpenRouter bolt on only when you add a key.</p>
+        </article>
+        <article class="card">
+          <h3>Deterministic &amp; measured</h3>
+          <p>A 32-task §31 reference suite runs offline in CI. <code>mcp-nexus benchmark</code> exits 0 only when every exact + semantic task routes correctly.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2>Architecture</h2>
+      <pre class="diagram">                    AI AGENT
+             Claude / Cursor / Codex
+                       │
+                       ▼
+              ┌─────────────────┐
+              │    MCP SERVER   │  stdio · Streamable HTTP
+              └────────┬────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │    DISCOVERY    │
+              └────────┬────────┘
+                       │
+             ┌─────────┴─────────┐
+             ▼                   ▼
+        TOOL REGISTRY         ROUTER          intent overlay (§25)
+                               │
+                   ┌───────────┼───────────┐
+                   ▼           ▼           ▼
+                Heuristic   Semantic    LLM*
+                   │           │           │
+                   └───────────┼───────────┘
+                               ▼
+                         POLICY ENGINE
+                               │
+                               ▼
+                         TOOL RUNNER
+                               │
+              local · stdio · docker · http
+                               │
+                               ▼
+                            MCP TOOL</pre>
+      <p class="note">* LLM is optional — MCP Nexus routes perfectly with no API key, no GPU, no network.<br>
+        Run everything with <code>npm install &amp;&amp; npm start</code> and a reference dashboard over <code>mcp-nexus dashboard</code>.</p>
+    </section>
+
+    <section id="benchmarks">
+      <h2>Deterministic §31 benchmark</h2>
+      <p class="sub">6 tools · 32 tasks (exact / semantic / ambiguous / unknown) · fully offline · asserted in CI</p>
+      <table>
+        <thead>
+          <tr><th>Provider</th><th class="num">Accuracy</th><th class="num">exact</th><th class="num">semantic</th><th class="num">ambiguous</th><th class="num">unknown</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Heuristic</td><td class="num strong">100%</td><td class="num">15/15</td><td class="num">4/4</td><td class="num">5/5</td><td class="num">8/8</td></tr>
+          <tr><td>Semantic</td><td class="num">87.5%</td><td class="num">15/15</td><td class="num">4/4</td><td class="num">2/5</td><td class="num">7/8</td></tr>
+          <tr><td>Hybrid chain</td><td class="num strong">93.8%</td><td class="num">15/15</td><td class="num">4/4</td><td class="num">4/5</td><td class="num">7/8</td></tr>
+          <tr><td>Large (50 tools)</td><td class="num strong">100%</td><td class="num">20/20</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+      <p class="note">Hard failures: <b>none</b>. The benchmark command <em>is</em> the CI gate.</p>
+    </section>
+
+    <section id="quickstart">
+      <h2>Quick start</h2>
+      <pre class="code"><code>$ git clone https://github.com/dsk-dev-ai/mcp-nexus.git
+$ cd mcp-nexus
+$ npm install
+
+# stdio for a local client, or Streamable HTTP for remote clients:
+$ npm start                          # stdio
+$ npm start -- start:http            # http://127.0.0.1:3001/mcp
+
+# manage tools, route, and verify in a second terminal:
+$ npm start -- add tools/repoarch.json
+$ npm start -- search "check vulnerable dependencies"
+$ npm start -- doctor
+$ npm start -- benchmark             # exit 0 = §31 reference green</code></pre>
+    </section>
+
+    <section id="docs">
+      <h2>Documentation</h2>
+      <div class="grid docs">
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/api.md"><article class="card"><h3>API reference</h3><p>MCP gateway (stdio + HTTP), dashboard REST, CLI, SDK.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/architecture.md"><article class="card"><h3>Architecture</h3><p>System design, router chain, policy, executor.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/routing.md"><article class="card"><h3>Routing</h3><p>Heuristic, semantic, LLM providers, intent overlay.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/registry.md"><article class="card"><h3>Tool registry</h3><p>Manifest schema (JSON + YAML), transports, permissions.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/benchmarks.md"><article class="card"><h3>Benchmarks</h3><p>Full §31 numbers, method, reproduction.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/dashboard.md"><article class="card"><h3>Dashboard</h3><p>Web UI + REST, policies, approvals, auth.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/security.md"><article class="card"><h3>Security</h3><p>Threat model, permissions, audit log.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/clients.md"><article class="card"><h3>Clients</h3><p>Verified MCP client compatibility matrix.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/sdk.md"><article class="card"><h3>SDK &amp; plugins</h3><p>Build Nexus-compatible tools and routers.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/performance.md"><article class="card"><h3>Performance</h3><p>V1 latency targets vs measured.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/docs/integrations.md"><article class="card"><h3>Integrations</h3><p>Docker, CI, environment setup.</p></article></a>
+        <a href="https://github.com/dsk-dev-ai/mcp-nexus/blob/main/CHANGELOG.md"><article class="card"><h3>Changelog</h3><p>Every release, documented.</p></article></a>
+      </div>
+    </section>
+
+    <section class="sponsor-cta">
+      <h2>Keep MCP Nexus free</h2>
+      <p>Sponsorships fund LLM-provider test keys, CI minutes, and documentation.</p>
+      <a class="btn primary" href="https://github.com/sponsors/dsk-dev-ai">Sponsor the project →</a>
+    </section>
+  </main>
+
+  <footer>
+    <span>© 2026 MCP Nexus · Apache-2.0</span>
+    <span class="links"><a href="https://github.com/dsk-dev-ai/mcp-nexus">GitHub</a> · <a href="https://github.com/sponsors/dsk-dev-ai">Sponsor</a></span>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
