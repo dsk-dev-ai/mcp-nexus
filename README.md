@@ -285,7 +285,7 @@ src/
 ├── dashboard/           # single-page UI + REST API (optional bearer auth)
 └── server/              # MCP server factory + stdio (server.ts) and Streamable HTTP (httpGateway.ts)
 examples/                # sample JSON + YAML manifests
-tests/                   # node:test suite (91 tests)
+tests/                   # node:test suite (93 tests)
 tools/                   # reference tool manifests
 docs/                    # architecture, registry, routing, security, integrations
 ```
