@@ -38,7 +38,7 @@ function withRegistry(fn: (registry: ToolRegistry) => Promise<void>): Promise<vo
 }
 
 function router(): NexusRouter {
-  return new NexusRouter([new HeuristicRouter(), new SemanticRouter(), new LlmRouter()]);
+  return new NexusRouter([new HeuristicRouter(), new SemanticRouter(), new LlmRouter("gemini")]);
 }
 
 test("stem handles irregular plurals and suffixes", () => {
@@ -100,7 +100,7 @@ test("explainable routing includes alternatives and confidence", async () => {
 });
 
 test("LLM router is unavailable without an API key", async () => {
-  const llm = new LlmRouter();
+  const llm = new LlmRouter("gemini");
   const result = await llm.route("analyze my repository", []);
   assert.equal(result.reliability, "unavailable");
 });

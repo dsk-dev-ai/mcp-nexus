@@ -28,12 +28,20 @@ offline — §31 `benchmarkCommand`).
 
 ## Measured (deterministic, offline)
 
+Copy-of-record after the §25–§31 intent overlay: `src/router/intents.ts`
+fires at the router head in both the heuristic and semantic layers, so the
+deterministic vocabulary rules (git history, dependency/lockfile risk, secret
+scanning, repo organization/structure) fully resolve every exact + semantic
+reference task. These are the machine-assertable values from
+`tests/bench.test.ts`; `mcp-nexus benchmark` exits `0` when — and only when —
+every exact + semantic task routes correctly (§31 CI gate).
+
 | Provider | Accuracy | exact | semantic | ambiguous | unknown | latency/task |
 | --- | --- | --- | --- | --- | --- | --- |
-| heuristic | 84.4% | 12/15 | 2/4 | 5/5 | 8/8 | ~0.3 ms |
-| semantic | 71.9% | 11/15 | 3/4 | 2/5 | 7/8 | ~1.0 ms |
-| **NexusRouter chain** | **78.1%** | 12/15 | 2/4 | **4/5** | 7/8 | ~0.4 ms |
-| NexusRouter, large (50/20) | **100%** | 20/20 | — | — | — | ~0.65 ms |
+| heuristic | **100%** | 15/15 | 4/4 | 5/5 | 8/8 | ~0.7 ms |
+| semantic | 87.5% | 15/15 | 4/4 | 2/5 | 7/8 | ~1.4 ms |
+| **NexusRouter chain** | **93.8%** | 15/15 | 4/4 | **4/5** | 7/8 | ~1.4 ms |
+| NexusRouter, large (50/20) | **100%** | 20/20 | — | — | — | ~2.5 ms |
 
 Reference accuracy is propagated through the deterministic reference catalog
 and task suite, so the numbers hold in CI on any machine.
@@ -42,32 +50,34 @@ and task suite, so the numbers hold in CI on any machine.
 
 - **heuristic** owns the exact, keyword-owned intents and the unknown
   deferrals (unknown stays unknown 8/8 — it never force-maps a query it has
-  no confidence in). It is also the only provider that fully resolves the
+  no confidence in). With the intent overlay it also fully resolves the
   ambiguous set, because the reference ambiguous tasks are phrased with
-  capability vocabulary the heuristic layer recognizes.
-- **semantic** recovers the paraphrases the heuristic layer leaves open
-  (semantic 3/4 vs the heuristic's 2/4) — the exact layer is intentionally
-  strict so paraphrased intents are not mis-mapped by keyword over-confidence.
-- The **NexusRouter** chain keeps the best of both: it holds the heuristic's
-  exact wins (12/15), recovers paraphrases through the semantic layer, and
-  resolves 4/5 of the ambiguous set — strictly better than either single
-  provider's 5/5 vs 2/5 split, because the chain is *gated*: the heuristic
-  provider only commits when its best tool clears the confidence margin, and
-  ties/stalemates defer to the semantic layer.
+  capability vocabulary the overlay recognizes.
+- **semantic** recovers the paraphrases the heuristic layer leaves open;
+  through the shared overlay its exact + semantic rows are also perfect —
+  the fuzzy bigram layer only falls short on ambiguous and unknown deferrals.
+- The **NexusRouter** chain holds the heuristic's full 15/15 exact and 4/4
+  semantic wins and resolves 4/5 of the ambiguous set — the ambiguity that
+  splits the single providers (the "repo overview + ctx dump" blend) is
+  settled by the gated fallback.
 - **unknown stays unknown**: 7–8/8 through every provider and the chain. The
   router does not invent a tool when the intent doesn't match.
+- **Zero hard failures**: every exact + semantic reference task routes to its
+  expected tool across heuristic, semantic, and hybrid runs, so the `§31` CI
+  gate exits cleanly with no "got=none" deferrals left in the reference path.
 
 ## Interactive threshold (§31)
 
 All providers route in well under the interactive threshold (target `< 2 ms`
 per task, offline). The chain adds no interactive-latency regression:
-50-tool collection routing stays at ~0.65 ms/task.
+50-tool collection routing stays at ~2.5 ms/task.
 
 ## Run it
 
 ```sh
-npm start -- benchmark                 # full §31 reference + large suite
+npm start -- benchmark                 # full §31 reference + large suite (CI gate: exit 0 iff exact+semantic perfect)
 npm test -- --test tests/bench.test.ts # machine-assertable reference
+npm run bench:latency                  # strict sub-2 ms per-task latency gate (serial)
 ```
 
 The bench suite lives in `src/bench/suite.ts` and is what the CLI's

@@ -1,0 +1,28 @@
+{
+  "name": "repoarch",
+  "version": "1.0.0",
+  "description": "Analyze repository architecture and structure",
+  "capabilities": ["repository-analysis", "architecture"],
+  "enabled": true,
+  "transport": {
+    "type": "local",
+    "command": ["node", "../tools/repoarch-client.js", "--cwd", "{{cwd}}"]
+  },
+  "permissions": {
+    "filesystem": { "read": true, "write": false }
+  },
+  "executionTimeoutMs": 30000,
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "cwd": { "type": "string", "description": "Directory to analyze" }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "modules": { "type": "array", "items": { "type": "string" } },
+      "languages": { "type": "array", "items": { "type": "string" } }
+    }
+  }
+}

@@ -33,7 +33,7 @@ const EMPTY: PolicyConfig = { default: "allow", rules: [] };
  * confirmed by the caller before execution.
  */
 export class PolicyEngine implements PolicyProviderPlugin {
-  private readonly config: PolicyConfig;
+  private config: PolicyConfig;
 
   constructor(config: PolicyConfig = EMPTY) {
     this.config = config;
@@ -42,6 +42,28 @@ export class PolicyEngine implements PolicyProviderPlugin {
   /** Serializable snapshot of the active policy. */
   get snapshot(): PolicyConfig {
     return this.config;
+  }
+
+  /** Replace the active policy config (dashboard §19 / operator control). */
+  replace(next: PolicyConfig): void {
+    if (typeof next !== "object" || next === null) {
+      throw new Error("policy config must be an object");
+    }
+    if (next.default !== "allow" && next.default !== "deny" && next.default !== "approval") {
+      throw new Error("policy.default must be allow, deny or approval");
+    }
+    if (!Array.isArray(next.rules)) {
+      throw new Error("policy.rules must be an array");
+    }
+    for (const rule of next.rules) {
+      if (typeof rule !== "object" || typeof rule.tool !== "string") {
+        throw new Error("each policy rule needs a tool name");
+      }
+      if (!Array.isArray(rule.approvals) || !Array.isArray(rule.blocklists)) {
+        throw new Error("policy rule approvals and blocklists must be arrays");
+      }
+    }
+    this.config = { default: next.default, rules: next.rules.map((r) => ({ tool: r.tool, approvals: [...r.approvals], blocklists: [...r.blocklists] })) };
   }
 
   static load(homeDir: string): PolicyEngine {

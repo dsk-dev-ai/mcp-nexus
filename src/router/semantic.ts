@@ -2,11 +2,30 @@ import type { RouterProvider, RoutingResult, RouterAlternative } from "./types.t
 import type { ToolManifest } from "../registry/manifest.ts";
 import type { RegistryEntry } from "../registry/registry.ts";
 import { tokenize, stem, capabilityTokens } from "./heuristic.ts";
+import { matchIntent } from "./intents.ts";
 import type { RouterPlugin } from "../sdk/interfaces.ts";
 
 export interface SemanticRouterOptions {
-  /** Minimum bigram-similarity before a term counts as a match */
+  /** Override the offline match threshold (default 0.35, §5 §31). */
   matchThreshold?: number;
+}
+
+/**
+ * Deterministic fingerprint of a tool catalog, stable across runs and
+ * independent of registry storage layout (§25 §31). Used to key the offline
+ * index cache so route() never re-tokenizes a catalog that hasn't changed.
+ */
+export function catalogFingerprint(tools: RegistryEntry[]): string {
+  const signature = tools
+    .map((t) => `${t.name}\u0000${t.description}\u0000${(t.capabilities ?? []).join(",")}`)
+    .sort()
+    .join("\u0001");
+  let hash = 2166136261;
+  for (let i = 0; i < signature.length; i++) {
+    hash ^= signature.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
 }
 
 /**
@@ -29,6 +48,23 @@ export class SemanticRouter implements RouterProvider, RouterPlugin {
   }
 
   async route(query: string, tools: RegistryEntry[]): Promise<RoutingResult> {
+    const intent = matchIntent(query);
+    if (intent) {
+      const target = tools.find((entry) => entry.name === intent.tool);
+      if (target) {
+        return {
+          reliability: "available",
+          decision: {
+            provider: "semantic",
+            tool: target,
+            confidence: 1,
+            matchedCapabilities: [intent.rule.group],
+            alternatives: [],
+            explanation: `Deterministic intent consult (§25 §31): ${intent.rule.group} vocabulary matched → ${target.name}.`,
+          },
+        };
+      }
+    }
     const qTokens = tokenize(query);
     if (qTokens.length === 0 || tools.length === 0) {
       return { reliability: "unavailable" };

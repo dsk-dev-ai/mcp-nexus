@@ -22,6 +22,8 @@ export interface ToolManifest {
   capabilities: string[];
   /** Optional JSON schema describing tool arguments */
   inputSchema?: Record<string, unknown>;
+  /** Optional JSON schema describing tool output (§3) */
+  outputSchema?: Record<string, unknown>;
   transport: TransportSpec;
   permissions?: Record<string, PermissionScope>;
   health?: { check?: boolean };

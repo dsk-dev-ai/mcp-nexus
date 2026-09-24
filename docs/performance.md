@@ -13,7 +13,8 @@ Measured on the reference machine (i5-8350U laptop, 15GB RAM, Linux, Node
 | Semantic routing (bigram/IDF over catalog) | — | ~0.5 ms | ✓ |
 | Registry lookup (in-memory) | < 50 ms | ~0.1 µs | ✓ |
 | Dashboard REST API (typical) | < 200 ms | ~2–2.5 ms | ✓ |
-| `mcp-nexus benchmark` (13 tasks, full) | — | ~100 ms | ✓ |
+| `npm run bench:latency` (32-task §31 suite) | — | ~1–2 ms | ✓ |
+| `mcp-nexus benchmark` (32-task reference) | — | ~1–3 ms | ✓ |
 
 ## Method
 
@@ -36,7 +37,8 @@ when unconfigured.
 
 ```sh
 npm run typecheck && npm test   # correctness baseline
-npm start -- benchmark          # reference 13-task suite
+npm start -- benchmark          # reference §31 suite (32 tasks)
+npm run bench:latency           # strict per-task latency gate (< 2 ms/task)
 ```
 
 The full multi-provider harness (accuracy + latency per provider over

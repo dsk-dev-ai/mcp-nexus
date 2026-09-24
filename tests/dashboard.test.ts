@@ -166,3 +166,83 @@ test("GET /api/config masks secrets", async () => {
     await close();
   });
 });
+
+test("PUT /api/policies edits and persists the policy config (§19)", async () => {
+  const home = mkdtempSync(join(tmpdir(), "nexus-dash-pol-"));
+  const registry = ToolRegistry.default(home);
+  const policy = PolicyEngine.load(home);
+  const handle = await startDashboard({
+    registry,
+    router: new NexusRouter([new HeuristicRouter()]),
+    policy,
+    approvals: new ApprovalStore(),
+    activity: ActivityLog.default(home),
+    executor: new ToolExecutor(),
+    config: normalizeConfig({ home, port: 0, routerProviders: ["heuristic"] }),
+  });
+  const b = `http://127.0.0.1:${handle.port}`;
+  try {
+    const put = await fetch(`${b}/api/policies`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        default: "deny",
+        rules: [{ tool: "repoarch", approvals: ["execute"], blocklists: ["filesystem.write"] }],
+      }),
+    });
+    assert.equal(put.status, 200);
+    const saved = await put.json() as { default: string; rules: Array<{ tool: string }> };
+    assert.equal(saved.default, "deny");
+    assert.equal(saved.rules[0]!.tool, "repoarch");
+    assert.equal(policy.snapshot.default, "deny");
+    assert.equal(policy.snapshot.rules[0]!.approvals[0], "execute");
+  } finally {
+    await handle.close();
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("PUT /api/policies rejects malformed config", async () => {
+  await withDashboard(async (base, close) => {
+    const res = await fetch(`${base}/api/policies`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ default: "nonsense", rules: [] }),
+    });
+    assert.equal(res.status, 400);
+    await close();
+  });
+});
+
+test("dashboard auth §20/§32: protected APIs reject without the token", async () => {
+  const home = mkdtempSync(join(tmpdir(), "nexus-dash-auth-"));
+  const registry = ToolRegistry.default(home);
+  const handle = await startDashboard({
+    registry,
+    router: new NexusRouter([new HeuristicRouter()]),
+    policy: new PolicyEngine(),
+    approvals: new ApprovalStore(),
+    activity: ActivityLog.default(home),
+    executor: new ToolExecutor(),
+    config: normalizeConfig({ home, port: 0, routerProviders: ["heuristic"], apiToken: "sekrit" }),
+  });
+  const b = `http://127.0.0.1:${handle.port}`;
+  try {
+    const denied = await fetch(`${b}/api/tools`);
+    assert.equal(denied.status, 401);
+    const body = await denied.json() as { error: string };
+    assert.match(body.error, /Bearer/);
+
+    const ok = await fetch(`${b}/api/tools`, { headers: { authorization: "Bearer sekrit" } });
+    assert.equal(ok.status, 200);
+
+    const health = await fetch(`${b}/api/health`, { headers: { authorization: "Bearer sekrit" } });
+    assert.equal(health.status, 200);
+
+    const masked = await (await fetch(`${b}/api/config`, { headers: { authorization: "Bearer sekrit" } })).json() as Record<string, unknown>;
+    assert.notEqual(masked.apiToken, "sekrit");
+  } finally {
+    await handle.close();
+    rmSync(home, { recursive: true, force: true });
+  }
+});

@@ -22,6 +22,8 @@ export interface NexusConfig {
   /** Optional API keys — never surfaced by any API (masked) */
   openrouterApiKey?: string;
   geminiApiKey?: string;
+  /** Optional bearer token protecting the dashboard REST API (§20/§32). */
+  apiToken?: string;
 }
 
 export const DEFAULT_PROVIDERS = ["heuristic", "semantic", "llm"];
@@ -56,6 +58,7 @@ export function normalizeConfig(p: Partial<NexusConfig>): NexusConfig {
     executionTimeoutMs: p.executionTimeoutMs ?? DEFAULT_CONFIG.executionTimeoutMs,
     openrouterApiKey: p.openrouterApiKey,
     geminiApiKey: p.geminiApiKey,
+    apiToken: p.apiToken,
   };
 }
 
@@ -86,6 +89,7 @@ function readEnv(): Partial<NexusConfig> {
   }
   out.openrouterApiKey = e.MCP_NEXUS_OPENROUTER_API_KEY ?? e.OPENROUTER_API_KEY;
   out.geminiApiKey = e.MCP_NEXUS_GEMINI_API_KEY ?? e.GEMINI_API_KEY;
+  out.apiToken = e.MCP_NEXUS_API_TOKEN;
   return out;
 }
 
@@ -132,5 +136,6 @@ export function loadConfig(): NexusConfig {
     executionTimeoutMs: env.executionTimeoutMs ?? overrides.executionTimeoutMs,
     openrouterApiKey: env.openrouterApiKey ?? overrides.openrouterApiKey,
     geminiApiKey: env.geminiApiKey ?? overrides.geminiApiKey,
+    apiToken: env.apiToken ?? overrides.apiToken,
   });
 }

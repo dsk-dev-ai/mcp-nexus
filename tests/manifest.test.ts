@@ -30,6 +30,17 @@ enabled: true
   assert.equal(manifest.transport.url, "http://localhost:8080");
 });
 
+test("preserves optional outputSchema for typed outputs (§3)", () => {
+  const manifest = parseManifest(JSON.stringify({
+    name: "typed", version: "1.0.0", description: "typed outputs", capabilities: ["test"],
+    inputSchema: { type: "object", properties: { q: { type: "string" } } },
+    outputSchema: { type: "object", properties: { ok: { type: "boolean" } } },
+    transport: { type: "local", command: ["echo"] }, enabled: true,
+  }));
+  assert.deepEqual(manifest.outputSchema, { type: "object", properties: { ok: { type: "boolean" } } });
+  assert.deepEqual(manifest.inputSchema, { type: "object", properties: { q: { type: "string" } } });
+});
+
 test("rejects missing required fields", () => {
   assert.throws(() => parseManifest(JSON.stringify({ name: "x", version: "1" })), ManifestValidationError);
 });

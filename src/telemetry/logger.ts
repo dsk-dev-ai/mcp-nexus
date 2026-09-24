@@ -17,6 +17,10 @@ export interface ActivitySummary {
   total: number;
   byStatus: Record<string, number>;
   byTool: Record<string, number>;
+  byRouter: Record<string, number>;
+  byToolAvgMs: Record<string, number>;
+  /** §26 per-tool provider attribution: tool → router → count. */
+  byToolByRouter: Record<string, Record<string, number>>;
   avgDurationMs: number;
 }
 
@@ -42,33 +46,53 @@ export class ActivityLog implements TelemetryProviderPlugin {
     return new ActivityLog(join(homeDir, "activity.jsonl"));
   }
 
-  log(record: Omit<ActivityRecord, "timestamp" | "executionId">): void {
+  log(record: Omit<ActivityRecord, "timestamp" | "executionId">): string {
+    const executionId = makeExecutionId();
     appendFileSync(
       this.file,
       JSON.stringify({
         ...record,
-        executionId: makeExecutionId(),
+        executionId,
         timestamp: new Date().toISOString(),
       }) + "\n",
     );
+    return executionId;
   }
 
   summary(): ActivitySummary {
     const lines = this.read();
     const byStatus: Record<string, number> = {};
     const byTool: Record<string, number> = {};
+    const byRouter: Record<string, number> = {};
+    const byToolTotalMs: Record<string, number> = {};
+    const byToolCount: Record<string, number> = {};
     let totalMs = 0;
+
+    const byToolByRouter: Record<string, Record<string, number>> = {};
 
     for (const record of lines) {
       byStatus[record.status] = (byStatus[record.status] ?? 0) + 1;
       byTool[record.tool] = (byTool[record.tool] ?? 0) + 1;
+      byRouter[record.router] = (byRouter[record.router] ?? 0) + 1;
+      (byToolByRouter[record.tool] ??= {})[record.router] =
+        (byToolByRouter[record.tool]?.[record.router] ?? 0) + 1;
+      byToolTotalMs[record.tool] = (byToolTotalMs[record.tool] ?? 0) + record.durationMs;
+      byToolCount[record.tool] = (byToolCount[record.tool] ?? 0) + 1;
       totalMs += record.durationMs;
+    }
+
+    const byToolAvgMs: Record<string, number> = {};
+    for (const tool of Object.keys(byToolTotalMs)) {
+      byToolAvgMs[tool] = Math.round((byToolTotalMs[tool] ?? 0) / (byToolCount[tool] ?? 1) * 10) / 10;
     }
 
     return {
       total: lines.length,
       byStatus,
       byTool,
+      byRouter,
+      byToolByRouter,
+      byToolAvgMs,
       avgDurationMs: lines.length ? Math.round(totalMs / lines.length) : 0,
     };
   }

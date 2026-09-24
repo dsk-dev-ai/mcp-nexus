@@ -6,6 +6,7 @@ import type { ApprovalStore } from "../policy/approvals.ts";
 import type { ActivityLog } from "../telemetry/logger.ts";
 import type { ToolExecutor } from "../executor/executor.ts";
 import type { NexusConfig } from "../config.ts";
+import { NEXUS_VERSION } from "../version.ts";
 
 export interface DashboardDeps {
   registry: ToolRegistry;
@@ -66,11 +67,21 @@ export async function startDashboard(deps: DashboardDeps): Promise<DashboardServ
         return;
       }
 
+      // ---- Auth (§20/§32): optional bearer token covers every /api/* route ----
+      if (path.startsWith("/api/") && isProtected(deps)) {
+        const header = req.headers.authorization ?? "";
+        const expected = `Bearer ${deps.config.apiToken}`;
+        if (header.trim() !== expected) {
+          json(res, 401, { error: "unauthorized — set MCP_NEXUS_API_TOKEN and send an Authorization: Bearer <token> header" });
+          return;
+        }
+      }
+
       // ---- API ----
       if (method === "GET" && path === "/api/health") {
         json(res, 200, {
           status: "ok",
-          version: "0.8.0",
+          version: NEXUS_VERSION,
           uptime: Math.round(process.uptime()),
           tools: deps.registry.list().length,
         });
@@ -90,6 +101,8 @@ export async function startDashboard(deps: DashboardDeps): Promise<DashboardServ
             : 100,
           avgLatencyMs: summary.avgDurationMs,
           byTool: summary.byTool,
+          byRouter: summary.byRouter,
+          byToolAvgMs: summary.byToolAvgMs,
           byStatus: summary.byStatus,
           pendingApprovals: deps.approvals.list().length,
         });
@@ -170,6 +183,22 @@ export async function startDashboard(deps: DashboardDeps): Promise<DashboardServ
         return;
       }
 
+      if (method === "PUT" && path === "/api/policies") {
+        const body = await readBody(req);
+        try {
+          const next = {
+            default: String(body.default ?? "allow") as "allow" | "deny" | "approval",
+            rules: Array.isArray(body.rules) ? body.rules as Array<{ tool: string; approvals: string[]; blocklists: string[] }> : [],
+          };
+          deps.policy.replace(next);
+          deps.policy.save(deps.config.home);
+          json(res, 200, deps.policy.snapshot);
+        } catch (error) {
+          json(res, 400, { error: error instanceof Error ? error.message : String(error) });
+        }
+        return;
+      }
+
       if (method === "GET" && path === "/api/approvals") {
         json(res, 200, deps.approvals.list());
         return;
@@ -239,9 +268,15 @@ function maskedConfig(config: NexusConfig): Record<string, unknown> {
   delete (masked as Record<string, unknown>).home;
   delete (masked as Record<string, unknown>).openrouterApiKey;
   delete (masked as Record<string, unknown>).geminiApiKey;
+  delete (masked as Record<string, unknown>).apiToken;
   (masked as Record<string, unknown>).openrouterApiKey = config.openrouterApiKey ? "****" : undefined;
   (masked as Record<string, unknown>).geminiApiKey = config.geminiApiKey ? "****" : undefined;
+  (masked as Record<string, unknown>).apiToken = config.apiToken ? "****" : undefined;
   return masked;
+}
+
+function isProtected(deps: DashboardDeps): boolean {
+  return Boolean(deps.config.apiToken);
 }
 
 async function runBenchmark(deps: DashboardDeps): Promise<unknown> {
@@ -342,7 +377,7 @@ pre{background:#0f1419;border:1px solid var(--border);border-radius:8px;padding:
 </head>
 <body>
 <header>
-  <h1>MCP Nexus <span class="tag">0.8.0</span></h1>
+  <h1>MCP Nexus <span class="tag">${NEXUS_VERSION}</span></h1>
   <nav>
     <button data-sec="overview" class="active">Overview</button>
     <button data-sec="tools">Tools</button>
@@ -360,7 +395,7 @@ pre{background:#0f1419;border:1px solid var(--border);border-radius:8px;padding:
   <section id="router"><div class="flex" style="margin-bottom:10px"><input id="route-query" placeholder="try: analyze my repository architecture" type="text"><button class="primary" id="route-btn">Route</button></div><pre id="route-out"></pre></section>
   <section id="activity"><table id="activitytbl"></table></section>
   <section id="approvals"><table id="approvalstbl"></table><p class="muted" id="approvals-empty"></p></section>
-  <section id="policies"><pre id="police-out"></pre></section>
+  <section id="policies"><p class="muted">Default allow/deny/approval plus per-tool rules. Edit JSON and save (writes .nexus/policy.json).</p><div class="flex" style="margin-bottom:10px"><button class="primary" id="policy-save">Save policy</button><span class="muted" id="policy-status"></span></div><textarea id="police-out" spellcheck="false" style="width:100%;min-height:260px;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:10px;font:12px/1.5 monospace"></textarea></section>
   <section id="benchmark"><p class="muted">Runs the deterministic 13-task suite against the live registry. Click to refresh.</p><button id="bench-run" class="primary">Run benchmark</button><pre id="bench-out"></pre></section>
   <section id="settings"><pre id="config-out"></pre></section>
 </main>
@@ -385,7 +420,26 @@ async function loadSummary(){
   const s=await j("/api/summary");
   const cards=[["Tools",s.tools],["Enabled",s.enabled],["Calls",s.calls],["Success",s.successRate+"%"],["Avg latency",s.avgLatencyMs+"ms"],["Pending approvals",s.pendingApprovals]];
   $("#sumcards").innerHTML=cards.map(c=>'<div class="card"><div class="k">'+c[0]+'</div><div class="v">'+c[1]+'</div></div>').join("");
-  $("#usagestbl").innerHTML="<tr><th>Tool</th><th>Calls</th></tr>"+Object.entries(s.byTool).sort((a,b)=>b[1]-a[1]).map(([t,n])=>'<tr><td>'+esc(t)+'</td><td>'+n+'</td></tr>').join("")||"<tr><td class='muted' colspan='2'>no activity yet</td></tr>";
+  renderProviderSplit("router-split", s.byRouter||{});
+  renderToolLatency("tool-latency", s.byToolAvgMs||{});
+}
+function renderProviderSplit(id,byRouter){
+  const entries=Object.entries(byRouter).sort((a,b)=>b[1]-a[1]);
+  const total=entries.reduce((n,[,c])=>n+c,0)||1;
+  $("#"+id).innerHTML='<div class="split"><div class="split-track">'+
+    entries.map(([router,count])=>{
+      const w=Math.round(1000*count/total)/10;
+      const color=router==="heuristic"?"#8ae2ff":router==="semantic"?"#b39dff":router==="hybrid"?"#7de2a6":"#d9a7ff"; // heur/sem/hybrid/other
+      return '<div class="split-seg" style="background:'+color+';width:'+w+'%" title="'+esc(router)+': '+count+'"></div>';}).join("")+'</div>'+
+    entries.map(([router,count])=>{
+      const color=router==="heuristic"?"#8ae2ff":router==="semantic"?"#b39dff":router==="hybrid"?"#7de2a6":"#d9a7ff";
+      return '<span class="leg"><i style="background:'+color+'"></i>'+esc(router)+' <b>'+count+'</b> <span class="muted">('+Math.round(100*total===0?0:count/total*100)+'%)</span></span>';}).join("")||'<span class="muted">no routed activity yet — run the benchmark or invoke a tool</span>';
+}
+function renderToolLatency(id,avgMsByTool){
+  const rows=Object.entries(avgMsByTool).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const max=Math.max(...rows.map(([,v])=>v),1);
+  $("#"+id).innerHTML=rows.map(([tool,avg])=>
+    '<div class="lat-row"><span class="lat-tool">'+esc(tool)+'</span><span class="lat-track"><span class="lat-bar" style="width:'+Math.round(100*avg/max)+'%"></span></span><span class="lat-ms">'+avg+'ms</span></div>').join("")||'<span class="muted">no latency series yet</span>';
 }
 async function loadTools(){
   const tools=await j("/api/tools");
@@ -430,7 +484,15 @@ document.getElementById("approvalstbl").addEventListener("click",async e=>{
   await j("/api/approvals/"+encodeURIComponent(b.dataset.ap),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({approved:b.dataset.v==="1"})});
   loadApprovals();loadSummary();
 });
-async function loadPolicies(){$("#police-out").textContent=JSON.stringify(await j("/api/policies"),null,2);}
+async function loadPolicies(){$("#police-out").value=JSON.stringify(await j("/api/policies"),null,2);$("#policy-status").textContent="";}
+document.getElementById("policy-save").onclick=async()=>{
+  const status=$("#policy-status");
+  try{
+    const parsed=JSON.parse($("#police-out").value);
+    const saved=await j("/api/policies",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(parsed)});
+    status.textContent="saved: default="+saved.default+" rules="+saved.rules.length;
+  }catch(e){status.textContent="save failed: "+e.message;}
+};
 async function loadConfig(){$("#config-out").textContent=JSON.stringify(await j("/api/config"),null,2);}
 document.getElementById("bench-run").onclick=async()=>{
   const out=$("#bench-out");out.textContent="running...";
